@@ -154,6 +154,11 @@
   .plrow.offline{opacity:.62;cursor:default}
   .plrow.offline:hover{background:transparent}
   #plist .plnote{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.18);font-size:12px}
+  #plLoad{margin-top:9px;width:100%;appearance:none;cursor:pointer;
+    padding:9px 12px;border-radius:12px;border:1.5px solid rgba(140,235,250,.65);
+    background:rgba(140,235,250,.14);color:#fff;font:inherit;font-size:12.5px;font-weight:500;
+    transition:background .25s}
+  #plLoad:hover{background:rgba(140,235,250,.30)}
 
   /* ---------- responsive ladder: condense before anything can overlap ---------- */
   @media (max-width:1500px){
@@ -1194,9 +1199,48 @@ function renderPlaylist(){
   });
   if(plRemote){
     const p = document.createElement("p"); p.className = "empty plnote";
-    p.textContent = "These tracks play in the local edition — the public demo can't ship the recordings.";
+    p.textContent = "The recordings aren't hosted here — load them straight from your computer instead:";
     plItems.appendChild(p);
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "plLoad";
+    b.textContent = "Load songs from your computer";
+    b.addEventListener("click", pickLocalSongs);
+    plItems.appendChild(b);
   }
+}
+
+/* Hosted "bypass" that never uploads anything: the visitor points the page at
+   their own copy of the songs (a folder or multi-file pick). Files become
+   object URLs — same trusted path as Upload MP3, so analysis works fully. */
+const normName = s => s.toLowerCase().replace(/\.[a-z0-9]+$/,"").replace(/[^a-z0-9一-鿿]+/g,"");
+function pickLocalSongs(){
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.multiple = true;
+  inp.webkitdirectory = true;                      // folder pick where supported
+  inp.addEventListener("change", ()=>{
+    let files = Array.from(inp.files).filter(f=>/\.(mp3|m4a|wav|flac|aac|ogg)$/i.test(f.name));
+    if(!files.length) return;
+    let matched = 0;
+    PLAYLIST.forEach(tr=>{
+      const want = normName(tr.file.split("/").pop());
+      const hit = files.find(f=>normName(f.name)===want);
+      if(hit){ tr.file = URL.createObjectURL(hit); tr.blob = true; matched++; }
+    });
+    if(!matched){                                   // unknown songs → play what was picked
+      PLAYLIST.length = 0;
+      files.sort((a,b)=>a.name.localeCompare(b.name)).forEach(f=>{
+        PLAYLIST.push({ title: f.name.replace(/\.[a-z0-9]+$/i,""), file: URL.createObjectURL(f), blob: true });
+      });
+    }else{                                          // drop entries that stayed unmatched
+      for(let k=PLAYLIST.length-1; k>=0; k--) if(!PLAYLIST[k].blob) PLAYLIST.splice(k,1);
+    }
+    plRemote = false;
+    plIndex = -1;
+    renderPlaylist();
+    playTrack(0);
+  });
+  inp.click();
 }
 function playTrack(i){
   if(!PLAYLIST.length) return;
@@ -1208,7 +1252,7 @@ function playTrack(i){
   ensureCtx(); stopAll();
   plIndex = ((i % PLAYLIST.length) + PLAYLIST.length) % PLAYLIST.length;
   const tr = PLAYLIST[plIndex];
-  mediaEl = new Audio(encodeURI(tr.file));
+  mediaEl = new Audio(tr.blob ? tr.file : encodeURI(tr.file));
   mediaEl.preload = "auto";
   mediaSrc = actx.createMediaElementSource(mediaEl);
   mediaSrc.connect(analyser); analyser.connect(actx.destination);
