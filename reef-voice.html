@@ -151,6 +151,9 @@
   .plrow .n{flex:0 0 18px;text-align:right;color:var(--ink-dim);font-size:12px;font-variant-numeric:tabular-nums}
   .plrow.current .n{color:var(--cyan)}
   #plist .empty{font-size:13px;line-height:1.55;color:var(--ink-dim);font-weight:500}
+  .plrow.offline{opacity:.62;cursor:default}
+  .plrow.offline:hover{background:transparent}
+  #plist .plnote{margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.18);font-size:12px}
 
   /* ---------- responsive ladder: condense before anything can overlap ---------- */
   @media (max-width:1500px){
@@ -1170,6 +1173,7 @@ const PLAYLIST = [
   {title:"龙宫 — 上美",                             file:"playlist/龙宫 - 上美.mp3"},
 ];
 let plIndex = -1;
+let plRemote = false;      // true on a hosted copy that doesn't carry the recordings
 const plistEl = $("plist"), plItems = $("plItems");
 function renderPlaylist(){
   plItems.innerHTML = "";
@@ -1180,16 +1184,27 @@ function renderPlaylist(){
   }
   PLAYLIST.forEach((tr,i)=>{
     const row = document.createElement("div");
-    row.className = "plrow" + (i===plIndex && curKind==="playlist" ? " current" : "");
+    row.className = "plrow" + (i===plIndex && curKind==="playlist" ? " current" : "")
+                            + (plRemote ? " offline" : "");
     const n = document.createElement("span"); n.className = "n"; n.textContent = i+1;
     const ttl = document.createElement("span"); ttl.textContent = tr.title;
     row.append(n, ttl);
     row.addEventListener("click", ()=> playTrack(i));
     plItems.appendChild(row);
   });
+  if(plRemote){
+    const p = document.createElement("p"); p.className = "empty plnote";
+    p.textContent = "These tracks play in the local edition — the public demo can't ship the recordings.";
+    plItems.appendChild(p);
+  }
 }
 function playTrack(i){
   if(!PLAYLIST.length) return;
+  if(plRemote){
+    plistEl.hidden = false;
+    statusTxt.textContent = "Playlist plays in the local edition — try Test Audio, Upload or Mic";
+    return;
+  }
   ensureCtx(); stopAll();
   plIndex = ((i % PLAYLIST.length) + PLAYLIST.length) % PLAYLIST.length;
   const tr = PLAYLIST[plIndex];
@@ -1241,22 +1256,25 @@ btns.test.addEventListener("click", playTest);
 btns.mic .addEventListener("click", playMic);
 btns.file.addEventListener("click", ()=> $("filePick").click());
 btns.pl  .addEventListener("click", ()=>{
+  if(plRemote){                                    // hosted: browse the list, audio lives locally
+    plistEl.hidden = !plistEl.hidden;
+    if(!plistEl.hidden){
+      statusTxt.textContent = "Playlist plays in the local edition — try Test Audio, Upload or Mic";
+      renderPlaylist();
+    }
+    return;
+  }
   if(curKind==="playlist"){ stopAll(); renderPlaylist(); }
   else playTrack(plIndex < 0 ? 0 : plIndex);
 });
 renderPlaylist();
-/* The personal playlist ships only with the local copy (the songs are not in
-   the public repo). On a hosted origin, probe the first track — if it's not
-   there, remove the playlist source entirely so nothing looks broken. */
+/* The personal playlist's recordings ship only with the local copy (they can't
+   be pushed to a public repo). On a hosted origin without them, KEEP the whole
+   playlist UI — rows just browse instead of play, clearly labeled. */
 if(location.protocol !== "file:" && !["localhost","127.0.0.1"].includes(location.hostname)){
   fetch(encodeURI(PLAYLIST[0].file), {method:"HEAD"})
     .then(r=>{ if(!r.ok) throw 0; })
-    .catch(()=>{
-      btns.pl.style.display = "none";
-      plistEl.hidden = true;
-      const tip1 = document.querySelector("#tips .tip p");
-      if(tip1) tip1.textContent = "You can speak, upload your own music, or start the test audio.";
-    });
+    .catch(()=>{ plRemote = true; renderPlaylist(); });
 }
 $("filePick").addEventListener("change", e=>{ if(e.target.files[0]) playFile(e.target.files[0]); e.target.value=""; });
 const rSens = $("rSens");
