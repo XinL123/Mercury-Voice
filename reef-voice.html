@@ -1163,19 +1163,18 @@ function playFile(file){
   statusTxt.textContent = "Playing — " + trackLabel;
 }
 
-/* ---- My Playlist: sea-themed tracks from the playlist/ folder ----
-   Add songs by dropping files into playlist/ and listing them here. */
+/* ---- My Playlist: published AAC/M4A recordings in the audio/ folder ---- */
 const PLAYLIST = [
-  {title:"Part of Your World — Ariel",             file:"playlist/Part of Your World - Ariel.mp3"},
-  {title:"Under the Sea — Samuel E. Wright",       file:"playlist/Under The Sea - Samuel E. Wright.MP3"},
-  {title:"Finding Nemo — Thomas Newman",           file:"playlist/Finding Nemo - Thomas Newman.mp3"},
-  {title:"Ponyo on the Cliff by the Sea — 久石譲",  file:"playlist/Ponyo On The Cliff By The Sea - 久石譲.m4a"},
-  {title:"Happy Ending — Disney Chorus",           file:"playlist/Happy Ending - Disney Chorus.mp3"},
-  {title:"Poor Unfortunate Souls — Ursula",        file:"playlist/Poor Unfortunate Souls - Ursula.MP3"},
-  {title:"SpongeBob SquarePants Theme",            file:"playlist/SpongeBob SquarePants Theme Song.mp3"},
-  {title:"Swan Lake Main Title — Barbie",          file:"playlist/Swan Lake Main Title - Barbie.mp3"},
-  {title:"哪吒闹海 — 上美",                         file:"playlist/哪吒闹海 - 上美.mp3"},
-  {title:"龙宫 — 上美",                             file:"playlist/龙宫 - 上美.mp3"},
+  {title:"Part of Your World — Ariel",             file:"audio/part-of-your-world.m4a"},
+  {title:"Under the Sea — Samuel E. Wright",       file:"audio/under-the-sea.m4a"},
+  {title:"Finding Nemo — Thomas Newman",           file:"audio/finding-nemo.m4a"},
+  {title:"Ponyo on the Cliff by the Sea — 久石譲",  file:"audio/ponyo-on-the-cliff-by-the-sea.m4a"},
+  {title:"Happy Ending — Disney Chorus",           file:"audio/happy-ending.m4a"},
+  {title:"Poor Unfortunate Souls — Ursula",        file:"audio/poor-unfortunate-souls.m4a"},
+  {title:"SpongeBob SquarePants Theme",            file:"audio/spongebob-squarepants-theme.m4a"},
+  {title:"Swan Lake Main Title — Barbie",          file:"audio/swan-lake-main-title.m4a"},
+  {title:"哪吒闹海 — 上美",                         file:"audio/ne-zha-conquers-the-dragon-king.m4a"},
+  {title:"龙宫 — 上美",                             file:"audio/dragon-palace.m4a"},
 ];
 let plIndex = -1;
 let plRemote = false;      // true on a hosted copy that doesn't carry the recordings

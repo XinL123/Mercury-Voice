@@ -8,9 +8,9 @@ underdamped spring driving the hero bubble.
 
 [https://xinl123.github.io/Mercury-Voice/](https://xinl123.github.io/Mercury-Voice/) 👈 Try it
 
-**Sources**: Test Audio (built-in synth loop) · Microphone · Upload MP3.
+**Sources**: Test Audio (built-in synth loop) · Microphone · Upload MP3 · My Playlist.
 
-**Local playlist**: the curated sea-themed playlist is a local-only feature —
-drop audio files into a `playlist/` folder next to the HTML, list them in the
-`PLAYLIST` array, and launch with `Open Reef Voice.command` (starts a tiny
-range-supporting server so seeking works).
+**Published playlist**: the curated playlist ships as compact AAC/M4A files in
+`audio/`. Keep the `PLAYLIST` array in `reef-voice.html` in sync when adding or
+replacing a track. Launch locally with `Open Reef Voice.command` (it starts a
+tiny range-supporting server so seeking works).
