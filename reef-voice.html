@@ -1245,6 +1245,19 @@ btns.pl  .addEventListener("click", ()=>{
   else playTrack(plIndex < 0 ? 0 : plIndex);
 });
 renderPlaylist();
+/* The personal playlist ships only with the local copy (the songs are not in
+   the public repo). On a hosted origin, probe the first track — if it's not
+   there, remove the playlist source entirely so nothing looks broken. */
+if(location.protocol !== "file:" && !["localhost","127.0.0.1"].includes(location.hostname)){
+  fetch(encodeURI(PLAYLIST[0].file), {method:"HEAD"})
+    .then(r=>{ if(!r.ok) throw 0; })
+    .catch(()=>{
+      btns.pl.style.display = "none";
+      plistEl.hidden = true;
+      const tip1 = document.querySelector("#tips .tip p");
+      if(tip1) tip1.textContent = "You can speak, upload your own music, or start the test audio.";
+    });
+}
 $("filePick").addEventListener("change", e=>{ if(e.target.files[0]) playFile(e.target.files[0]); e.target.value=""; });
 const rSens = $("rSens");
 function syncSens(){ sens = +rSens.value; rSens.style.setProperty("--fill", ((sens-0.4)/2.0*100)+"%"); }
