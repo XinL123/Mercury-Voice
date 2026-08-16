@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MERCURY·VOICE — Shallow Reef Audio Field</title>
+<style>
+  :root{
+    --ink:#ffffff;
+    --ink-dim:rgba(235,250,255,.72);
+    --cyan:#7fe6f2;
+    --glass:rgba(180,225,240,.16);
+    --glass-line:rgba(255,255,255,.42);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0d5e86;
+    font-family:"Avenir Next","Helvetica Neue",-apple-system,"Segoe UI",sans-serif;
+    color:var(--ink);-webkit-font-smoothing:antialiased}
+  #gl{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:crosshair;touch-action:none}
+
+  .hud{position:fixed;z-index:5;pointer-events:none;user-select:none}
+  .hud *{pointer-events:auto}
+  .hud{text-shadow:0 1px 10px rgba(4,50,70,.45)}
+
+  /* ---------- title ---------- */
+  #title{top:30px;left:36px;display:flex;flex-direction:column;gap:9px}
+  #title h1{font-size:22px;font-weight:500;letter-spacing:.42em;color:#fff}
+  #title .rule{width:300px;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.85),transparent);position:relative}
+  #title .wave{display:flex;align-items:flex-end;gap:2px;height:12px;margin:2px 0}
+  #title .wave i{width:2px;background:rgba(255,255,255,.75);border-radius:1px}
+  #title p{font-size:12.5px;font-weight:500;letter-spacing:.34em;color:var(--ink-dim)}
+
+  /* ---------- meters ---------- */
+  #meter{top:30px;right:40px;display:flex;flex-direction:column;gap:6px;align-items:stretch}
+  #meter .groups{display:flex;gap:34px}
+  .mgroup{display:flex;flex-direction:column;gap:8px}
+  .mgroup label{font-size:12px;font-weight:600;letter-spacing:.22em;color:#fff}
+  .mbars{display:flex;align-items:flex-end;gap:2.5px;height:26px}
+  .mbars i{width:3.5px;height:100%;border-radius:2px;background:rgba(160,235,250,.92);
+    transform-origin:bottom;transform:scaleY(.08);box-shadow:0 0 6px rgba(140,235,255,.35)}
+  #meter .scale{margin-top:6px;border-top:1px solid rgba(255,255,255,.4);padding-top:5px;
+    display:flex;justify-content:space-between;font-size:11px;letter-spacing:.1em;color:var(--ink-dim)}
+  #meter .ticks{height:5px;display:flex;justify-content:space-between;margin-top:-5px;padding-top:0}
+  #meter .ticks i{width:1px;height:4px;background:rgba(255,255,255,.35)}
+
+  /* ---------- status ---------- */
+  #status{left:50%;bottom:162px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;
+    font-size:15px;font-weight:500;letter-spacing:.06em;color:rgba(240,252,255,.9);transition:color .4s}
+  #status .dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.45);transition:all .4s}
+  #status.live{color:#fff}
+  #status.live .dot{background:#5be6e0;box-shadow:0 0 12px rgba(91,230,224,.9)}
+
+  /* ---------- dock ---------- */
+  #dock{left:50%;bottom:40px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:24px;
+    background:linear-gradient(180deg,rgba(220,245,252,.045),rgba(180,225,240,.02));
+    border:1.5px solid rgba(255,255,255,.26);
+    padding:12px 28px;border-radius:30px;
+    backdrop-filter:blur(7px) saturate(1.1);-webkit-backdrop-filter:blur(7px) saturate(1.1);
+    box-shadow:0 18px 50px rgba(6,60,85,.14), inset 0 1px 0 rgba(255,255,255,.28)}
+  .cbtn{appearance:none;border:none;background:none;color:#fff;font:inherit;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;gap:6px;padding:0}
+  .cbtn .disc{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(235,250,255,.055);border:1.5px solid rgba(255,255,255,.28);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.30), 0 6px 18px rgba(8,70,95,.10);
+    transition:background .25s, box-shadow .25s, transform .2s}
+  .cbtn:hover .disc{background:rgba(240,252,255,.32);transform:translateY(-1px)}
+  .cbtn:focus-visible .disc{outline:2px solid var(--cyan);outline-offset:3px}
+  .cbtn.active .disc{background:rgba(140,235,250,.38);border-color:#bdf3fa;
+    box-shadow:0 0 22px rgba(120,230,250,.55), inset 0 1px 0 rgba(255,255,255,.6)}
+  .cbtn .lbl{font-size:12.5px;font-weight:500;letter-spacing:.04em;color:rgba(245,253,255,.92);white-space:nowrap}
+  .cbtn svg{width:21px;height:21px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  /* microphone button matches its siblings — active state alone sets it apart */
+
+  #sens{display:flex;flex-direction:column;gap:6px;min-width:200px}
+  #sens .cap{font-size:14px;font-weight:500;letter-spacing:.03em;color:#fff}
+  #sens input{width:100%;height:5px;appearance:none;-webkit-appearance:none;border-radius:3px;cursor:pointer;
+    background:linear-gradient(90deg,rgba(190,245,252,.95) var(--fill,55%),rgba(255,255,255,.28) var(--fill,55%))}
+  #sens input::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,#fff,#bfeef8);border:2px solid rgba(255,255,255,.9);
+    box-shadow:0 0 12px rgba(150,235,250,.8)}
+  #sens .ends{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink-dim);letter-spacing:.04em}
+  input[type=file]{display:none}
+
+  /* ---------- music player (appears for uploaded tracks) ---------- */
+  #player{left:50%;bottom:196px;transform:translateX(-50%);
+    display:flex;align-items:center;gap:12px;
+    background:linear-gradient(180deg,rgba(220,245,252,.045),rgba(180,225,240,.02));
+    border:1.5px solid rgba(255,255,255,.26);border-radius:20px;padding:8px 16px;
+    backdrop-filter:blur(7px) saturate(1.1);-webkit-backdrop-filter:blur(7px) saturate(1.1);
+    box-shadow:0 12px 34px rgba(6,60,85,.12), inset 0 1px 0 rgba(255,255,255,.26)}
+  #player[hidden]{display:none}
+  #pPlay{appearance:none;border:1.5px solid rgba(255,255,255,.28);cursor:pointer;
+    width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(235,250,255,.055);transition:background .25s}
+  #pPlay:hover{background:rgba(240,252,255,.24)}
+  #pPlay svg{width:16px;height:16px;fill:#fff;stroke:none}
+  .pnav{appearance:none;border:1.5px solid rgba(255,255,255,.24);cursor:pointer;
+    width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(235,250,255,.045);transition:background .25s}
+  .pnav:hover{background:rgba(240,252,255,.20)}
+  .pnav[hidden]{display:none}
+  .pnav svg{width:12px;height:12px;fill:#fff;stroke:#fff;stroke-width:1.6;stroke-linecap:round}
+  #pPlay .icoPlay{display:none}
+  #player.paused .icoPlay{display:block}
+  #player.paused .icoPause{display:none}
+  #player .ptime{font-size:12.5px;letter-spacing:.05em;color:rgba(240,252,255,.88);min-width:40px;text-align:center;
+    font-variant-numeric:tabular-nums}
+  /* three-zone track: played · buffered · not yet loaded */
+  #pSeek{width:min(300px,38vw);height:5px;appearance:none;-webkit-appearance:none;border-radius:3px;cursor:pointer;
+    background:linear-gradient(90deg,
+      rgba(190,245,252,.95) var(--fill,0%),
+      rgba(255,255,255,.45) var(--fill,0%) var(--buf,0%),
+      rgba(255,255,255,.16) var(--buf,0%))}
+  #pSeek::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,#fff,#bfeef8);border:2px solid rgba(255,255,255,.9);
+    box-shadow:0 0 10px rgba(150,235,250,.8)}
+
+  /* ---------- tips ---------- */
+  #tips{left:36px;bottom:44px;width:300px;
+    background:linear-gradient(180deg,rgba(215,245,252,.04),rgba(170,220,240,.018));
+    border:1.5px solid rgba(255,255,255,.24);border-radius:22px;padding:18px 20px;
+    backdrop-filter:blur(6px) saturate(1.1);-webkit-backdrop-filter:blur(6px) saturate(1.1);
+    box-shadow:0 14px 40px rgba(6,60,85,.12), inset 0 1px 0 rgba(255,255,255,.26)}
+  #tips h2{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:600;letter-spacing:.04em;margin-bottom:14px;color:#fff}
+  #tips h2 svg{width:19px;height:19px;stroke:var(--cyan);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  #tips .tip{display:flex;align-items:flex-start;gap:11px;margin-bottom:12px}
+  #tips .tip:last-child{margin-bottom:2px}
+  #tips .tico{flex:0 0 30px;width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(140,235,250,.75);
+    display:flex;align-items:center;justify-content:center;margin-top:1px}
+  #tips .tico svg{width:15px;height:15px;stroke:var(--cyan);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  #tips p{font-size:13.5px;line-height:1.45;color:rgba(240,251,255,.92);font-weight:500}
+  #tips .intro{font-size:13px;line-height:1.6;color:rgba(240,251,255,.88);font-weight:500;
+    margin-bottom:15px;padding-bottom:13px;border-bottom:1px solid rgba(255,255,255,.20)}
+
+  /* ---------- playlist panel (mirrors Tips, on the right) ---------- */
+  #plist{right:36px;bottom:44px;width:300px;
+    background:linear-gradient(180deg,rgba(215,245,252,.04),rgba(170,220,240,.018));
+    border:1.5px solid rgba(255,255,255,.24);border-radius:22px;padding:18px 20px;
+    backdrop-filter:blur(6px) saturate(1.1);-webkit-backdrop-filter:blur(6px) saturate(1.1);
+    box-shadow:0 14px 40px rgba(6,60,85,.12), inset 0 1px 0 rgba(255,255,255,.26)}
+  #plist[hidden]{display:none}
+  #plItems{max-height:min(50vh,440px);overflow-y:auto;scrollbar-width:thin}
+  #plist h2{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:600;letter-spacing:.04em;margin-bottom:12px;color:#fff}
+  #plist h2 svg{width:19px;height:19px;stroke:var(--cyan);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .plrow{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:12px;cursor:pointer;
+    font-size:13.5px;font-weight:500;color:rgba(240,251,255,.92);transition:background .2s}
+  .plrow span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .plrow:hover{background:rgba(255,255,255,.10)}
+  .plrow.current{background:rgba(140,235,250,.16);color:#fff}
+  .plrow .n{flex:0 0 18px;text-align:right;color:var(--ink-dim);font-size:12px;font-variant-numeric:tabular-nums}
+  .plrow.current .n{color:var(--cyan)}
+  #plist .empty{font-size:13px;line-height:1.55;color:var(--ink-dim);font-weight:500}
+
+  /* ---------- responsive ladder: condense before anything can overlap ---------- */
+  @media (max-width:1500px){
+    #tips,#plist{width:250px}
+    #tips .intro{font-size:12.5px}
+    #dock{gap:16px;padding:11px 22px}
+    .cbtn .disc{width:50px;height:50px}
+    .cbtn svg{width:20px;height:20px}
+    .cbtn .lbl{font-size:12px}
+    #sens{min-width:170px}
+  }
+  @media (max-width:1220px){
+    #tips .intro{display:none}
+    #tips,#plist{width:225px;padding:14px 16px}
+    #tips p{font-size:12.5px}
+    .plrow{font-size:12.5px;padding:7px 8px}
+    #dock{gap:12px;padding:10px 16px}
+    .cbtn .disc{width:46px;height:46px}
+    .cbtn svg{width:18px;height:18px}
+    #sens{min-width:140px}
+    #sens .cap{font-size:13px}
+    #status{font-size:13.5px;bottom:150px}
+    #player{bottom:182px}
+  }
+  @media (max-width:1100px){
+    #plist{display:none}                 /* not enough room — prev/next still switch songs */
+  }
+  @media (max-width:1010px){
+    #tips,#meter{display:none}
+    #title{top:20px;left:22px}
+    #title h1{font-size:17px}
+    #title .rule{width:190px}
+  }
+  @media (max-width:640px){
+    #status{bottom:138px;font-size:12px}
+    #player{bottom:168px;max-width:94vw;padding:6px 10px;gap:8px}
+    #dock{gap:10px;padding:8px 10px;max-width:96vw;border-radius:22px}
+    .cbtn .disc{width:42px;height:42px}
+    .cbtn .lbl{font-size:10.5px}
+    #sens{min-width:110px}
+  }
+  @media (prefers-reduced-motion:reduce){ .mbars i{transition:none} }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div class="hud" id="title">
+  <h1>MERCURY·VOICE</h1>
+  <div class="wave" id="titleWave"></div>
+  <div class="rule"></div>
+  <p>SHALLOW REEF AUDIO FIELD</p>
+</div>
+
+<div class="hud" id="meter">
+  <div class="groups">
+    <div class="mgroup"><label>BASS</label><div class="mbars" id="mBass"></div></div>
+    <div class="mgroup"><label>MID</label><div class="mbars" id="mMid"></div></div>
+    <div class="mgroup"><label>HIGH</label><div class="mbars" id="mHigh"></div></div>
+  </div>
+  <div class="ticks" id="mTicks"></div>
+  <div class="scale"><span>20</span><span>250</span><span>2K</span><span>20K</span></div>
+</div>
+
+<div class="hud" id="status"><span class="dot"></span><span id="statusTxt">Idle — choose an audio source</span></div>
+
+<div class="hud" id="player" hidden>
+  <button class="pnav" id="pPrev" hidden aria-label="Previous track">
+    <svg viewBox="0 0 16 16"><path d="M3.5 2.2v11.6M13.5 3v10c0 .9-1 1.4-1.7 1L5 9.2c-.7-.4-.7-1.5 0-1.9l6.8-4.3c.7-.5 1.7 0 1.7 1z"/></svg>
+  </button>
+  <button id="pPlay" aria-label="Play / pause">
+    <svg class="icoPause" viewBox="0 0 16 16"><rect x="2.5" y="1.5" width="4" height="13" rx="1.2"/><rect x="9.5" y="1.5" width="4" height="13" rx="1.2"/></svg>
+    <svg class="icoPlay" viewBox="0 0 16 16"><path d="M3.5 1.8v12.4c0 .9 1 1.5 1.8 1L15 8.9c.8-.5.8-1.6 0-2.1L5.3.9c-.8-.5-1.8.1-1.8.9z"/></svg>
+  </button>
+  <button class="pnav" id="pNext" hidden aria-label="Next track">
+    <svg viewBox="0 0 16 16"><path d="M12.5 2.2v11.6M2.5 3v10c0 .9 1 1.4 1.7 1L11 9.2c.7-.4.7-1.5 0-1.9L4.2 3c-.7-.5-1.7 0-1.7 1z"/></svg>
+  </button>
+  <span class="ptime" id="pCur">0:00</span>
+  <input type="range" id="pSeek" min="0" max="1000" step="1" value="0">
+  <span class="ptime" id="pDur">0:00</span>
+</div>
+
+<div class="hud" id="dock">
+  <button class="cbtn" id="btnTest">
+    <span class="disc"><svg viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></svg></span>
+    <span class="lbl">Test Audio</span>
+  </button>
+  <button class="cbtn" id="btnPlist">
+    <span class="disc"><svg viewBox="0 0 24 24"><path d="M4 6h10M4 10h10M4 14h6"/><path d="M17 15V4l3 1.2"/><circle cx="15" cy="16" r="2.4"/></svg></span>
+    <span class="lbl">My Playlist</span>
+  </button>
+  <button class="cbtn" id="btnFile">
+    <span class="disc"><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg></span>
+    <span class="lbl">Upload MP3</span>
+  </button>
+  <button class="cbtn primary" id="btnMic">
+    <span class="disc"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+    <span class="lbl">Microphone</span>
+  </button>
+  <div id="sens">
+    <span class="cap">Sensitivity</span>
+    <input type="range" id="rSens" min="0.4" max="2.4" step="0.05" value="1.15">
+    <div class="ends"><span>Low</span><span>High</span></div>
+  </div>
+</div>
+<input type="file" id="filePick" accept="audio/*">
+
+<div class="hud" id="tips">
+  <p class="intro">This design visualizes voice through an interactive underwater world, where bubbles respond to the rhythm and energy of sound. A curated selection of sea-themed music brings the experience to life.</p>
+  <h2><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.6 1 1.5 1 2.5h6c0-1 .3-1.9 1-2.5A6 6 0 0 0 12 3z"/></svg>Tips</h2>
+  <div class="tip"><span class="tico"><svg viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></svg></span>
+    <p>You can speak, upload your own music, or play from my playlist.</p></div>
+  <div class="tip"><span class="tico"><svg viewBox="0 0 24 24"><path d="M4 12h16"/><circle cx="14" cy="12" r="3.2"/></svg></span>
+    <p>Adjust the sensitivity to control how strongly the bubbles react to sound.</p></div>
+</div>
+
+<div class="hud" id="plist" hidden>
+  <h2><svg viewBox="0 0 24 24"><path d="M4 6h10M4 10h10M4 14h6"/><path d="M17 15V4l3 1.2"/><circle cx="15" cy="16" r="2.4"/></svg>My Playlist</h2>
+  <div id="plItems"></div>
+</div>
+
+<script>
+"use strict";
+/* ================= WebGL2 ================= */
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl2", {antialias:false, alpha:false});
+if(!gl){ document.getElementById("statusTxt").textContent = "A WebGL2 browser is required"; }
+
+const NB   = 48;   // analysis bands
+const NBUB = 24;   // 0 hero · 1-5 medium orbiters · 6-11 small orbiters · 12-23 free split-off bubbles
+const NFISH= 20;   // slot pool — a director spawns from 22 species: fish, schools, rays, jellies…
+
+const VSH = `#version 300 es
+precision highp float;
+const vec2 P[3]=vec2[3](vec2(-1.,-1.),vec2(3.,-1.),vec2(-1.,3.));
+void main(){ gl_Position=vec4(P[gl_VertexID],0.,1.); }`;
+
+const FSH = `#version 300 es
+precision highp float;
+out vec4 O;
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uBass,uMid,uHigh,uLevel,uGlow;   // uGlow = vocal energy envelope
+uniform float uRiseT;                          // accumulated riser clock (audio-paced)
+uniform float uMerge;                          // 0..1 how gooey / merged the cluster is
+uniform float uWob;                            // deformation amplitude (mid bands + transients)
+uniform float uSquash;                         // beat-synced hero squash (flatten + extra wobble)
+uniform vec4  uBub[${NBUB}];                   // x, y, r, phase
+uniform vec4  uBubV[${NBUB}];                  // vx, vy, bandEnergy, unused
+uniform vec4  uFish[${NFISH}];                 // x, y, dir/speed, size (size 0 = empty slot)
+uniform vec4  uFishP[${NFISH}];                // body plan, pattern, phase
+uniform vec4  uFishC1[${NFISH}];               // primary color
+uniform vec4  uFishC2[${NFISH}];               // secondary / pattern color
+
+const float PI = 3.14159265;
+float hash(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+vec2  hash2(vec2 p){ return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453); }
+float noise(vec2 p){
+  vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),
+             mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
+}
+float fbm(vec2 p){
+  float v=0.0, a=0.5;
+  for(int i=0;i<4;i++){ v+=a*noise(p); p=p*2.03+vec2(17.3,9.1); a*=0.5; }
+  return v;
+}
+
+/* classic animated caustic web (tiled domain, clamped output) */
+float caustic(vec2 uv, float t){
+  vec2 p = mod(uv*6.28318, 6.28318) - 250.0;
+  vec2 i = p; float c = 1.0; const float inten = 0.005;
+  for(int n=0; n<3; n++){
+    float tt = t*(1.0 - 3.5/float(n+1));
+    i = p + vec2(cos(tt-i.x)+sin(tt+i.y), sin(tt-i.y)+cos(tt+i.x));
+    c += 1.0/length(vec2(p.x/(sin(i.x+tt)/inten), p.y/(cos(i.y+tt)/inten)));
+  }
+  c /= 3.0; c = 1.17-pow(c,1.4);
+  return clamp(pow(abs(c),8.0), 0.0, 1.3);
+}
+
+/* smooth-min: lets close bubbles neck together and merge */
+float smin(float a, float b, float k){
+  float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);
+  return mix(b, a, h) - k*h*(1.0-h);
+}
+
+/* one bubble: irregular outline, stretched along its motion */
+float bubSDF(int i, vec2 p){
+  vec4 b = uBub[i];
+  if(b.z < 0.002) return 1e5;
+  vec2 q = p - b.xy;
+  vec2 v = uBubV[i].xy;
+  float sp = length(v);
+  if(sp > 1e-3){                                   // elongate along velocity
+    vec2 dir = v/sp;
+    float st = min(sp*0.9, 0.30);
+    q -= dir*dot(q,dir)*st;
+  }
+  if(i==0){                                        // beat squash: momentary compression
+    q.x *= 1.0 - uSquash*0.18;
+    q.y *= 1.0 + uSquash*0.28;
+  }
+  float a = atan(q.y,q.x);
+  float R = b.z;
+  float w = uWob*(0.55 + uBubV[i].z);
+  if(i==0) w *= 1.0 + uSquash*1.5;                 // hits ripple across the hero surface
+  R *= 1.0
+     + 0.050*w*sin(2.0*a + uTime*1.15 + b.w)
+     + 0.030*w*sin(3.0*a - uTime*0.85 + b.w*2.3)
+     + 0.016*w*sin(5.0*a + uTime*1.70 + b.w*4.1)
+     + 0.008*w*sin(7.0*a - uTime*2.30 + b.w*1.7);
+  return length(q) - R;
+}
+float field(vec2 p){
+  float k = 0.05 + 0.16*uMerge;                    // gooier while a note is held
+  float f = 1e5;
+  for(int i=0;i<${NBUB};i++) f = smin(f, bubSDF(i,p), k);
+  return f;
+}
+
+/* ---------------- underwater scene (background) ---------------- */
+vec3 scene(vec2 uv, float asp, float t){
+  /* base water column: bright near surface, rich turquoise mid, deeper at the sides */
+  float hgt = clamp(uv.y*0.5+0.5, 0.0, 1.0);
+  vec3 deep = vec3(0.030,0.34,0.54);
+  vec3 midw = vec3(0.10,0.54,0.72);
+  vec3 topw = vec3(0.32,0.74,0.86);
+  vec3 col = mix(deep, midw, smoothstep(0.0,0.60,hgt));
+  col = mix(col, topw, smoothstep(0.52,1.0,hgt));
+  float sideR = abs(uv.x)/max(asp,0.9);
+  col = mix(col, deep, smoothstep(0.35,1.05,sideR)*0.35);          // depth at the edges
+
+  /* very slow drifting light clouds — the water itself breathes a little */
+  col *= 0.96 + 0.08*fbm(uv*0.7 + vec2(t*0.010, -t*0.016));
+
+  /* Snell-window glow around the sun */
+  vec2 sun = vec2(-0.10, 1.18);
+  float sd = length(uv-sun);
+  col += vec3(0.62,0.84,0.90)*exp(-sd*sd*1.3)*0.38;
+
+  /* -------- sand floor with perspective caustics -------- */
+  float floorLine = -0.42 + fbm(vec2(uv.x*1.3, 7.0))*0.08;
+  float below = 1.0 - smoothstep(floorLine-0.05, floorLine+0.05, uv.y);
+  if(below > 0.001){
+    float t2 = clamp((floorLine-uv.y)/(floorLine+1.05), 0.0, 1.0);   // 0 far → 1 near
+    float wz = 1.0/(0.20 + t2*0.80);
+    vec2 guv = vec2(uv.x*wz, wz*1.25);
+    float ca = caustic(guv*0.7 + vec2(t*0.015, 0.0), t*0.6);
+    float grain = fbm(guv*4.5);
+    vec3 sand = vec3(0.86,0.87,0.77)*(0.80+0.20*grain);
+    sand *= 0.88 + 0.12*fbm(guv*1.4+3.0);                            // broad tonal patches
+    sand += vec3(0.85,0.98,1.0)*ca*0.42*(0.65+uLevel*0.45);          // caustic web
+    sand = mix(sand, vec3(0.16,0.55,0.70), (1.0-t2)*0.55);           // haze toward horizon
+    col = mix(col, sand, below);
+  }
+
+  /* -------- coral gardens hugging left / right edges -------- */
+  float edge = smoothstep(0.38, 0.88, sideR);
+  if(edge > 0.001 && uv.y < 0.30){
+    vec2 cuv = uv + vec2(sin(t*0.5 + uv.y*3.0)*0.012*edge, 0.0);     // gentle sway
+    float ch = 0.12 + 0.58*fbm(vec2(cuv.x*1.9, 4.7))
+             + 0.30*pow(fbm(vec2(cuv.x*6.5, 11.3)), 2.0);            // finger-like tips
+    float coralTop = floorLine + 0.05 + edge*ch*0.95;
+    float cm = (1.0 - smoothstep(coralTop-0.06, coralTop, cuv.y))*edge;
+    if(cm > 0.001){
+      float sel = fbm(cuv*2.4 + 4.2);
+      vec3 c1 = vec3(0.90,0.48,0.42);   // coral pink
+      vec3 c2 = vec3(0.93,0.66,0.36);   // warm orange
+      vec3 c3 = vec3(0.62,0.50,0.74);   // lavender
+      vec3 c4 = vec3(0.22,0.46,0.47);   // dark teal
+      vec3 cc = mix(mix(c1,c2,smoothstep(0.30,0.55,sel)), mix(c3,c4,smoothstep(0.45,0.75,sel)), smoothstep(0.40,0.70,sel));
+      float lump = fbm(cuv*8.0);
+      cc *= 0.76 + 0.50*lump;                                        // knobbly texture
+      cc *= 0.78 + 0.42*smoothstep(coralTop-0.40, coralTop, cuv.y);  // lit tops
+      cc += vec3(0.85,0.98,1.0)*caustic(cuv*0.55, t*0.5)*0.13;       // light dapple
+      cc = mix(cc, midw, 0.22);                                      // water haze
+      col = mix(col, cc, cm*0.95);
+    }
+  }
+
+  /* -------- reef life: 22 species over 7 body plans, parameterised by
+     color pair + pattern so the water reads colorful and alive -------- */
+  for(int i=0;i<${NFISH};i++){
+    vec4 f = uFish[i];
+    if(f.w < 0.001) continue;                        // empty slot
+    float plan = uFishP[i].x;
+    float pat  = uFishP[i].y;
+    float fi   = uFishP[i].z*6.28;
+    vec3 cA = uFishC1[i].rgb, cB = uFishC2[i].rgb;
+    vec2 p = (uv - f.xy)/f.w;
+    p.x *= (f.z < 0.0 ? -1.0 : 1.0);
+    if(abs(p.x)>1.8 || abs(p.y)>1.5) continue;
+
+    if(plan > 4.5 && plan < 5.5){
+      /* jellyfish: translucent pulsing bell + wavy tentacles */
+      float pl = 0.92 + 0.10*sin(t*1.7 + fi);
+      vec2 q = vec2(p.x*pl, p.y/pl);
+      float bell = length(vec2(q.x*1.05, (q.y-0.05)*1.5)) - 0.45;
+      bell = max(bell, -(q.y+0.12));                 // open underside
+      float ab = 1.0 - smoothstep(-0.03,0.03,bell);
+      float tent = 0.0;
+      for(int k=0;k<4;k++){
+        float fx = (float(k)-1.5)*0.20;
+        float wx = fx + sin(t*1.4 + fi + float(k)*1.9 + p.y*2.6)*0.07;
+        float ds = abs(p.x-wx) - 0.016;
+        float m = (1.0-smoothstep(-0.015,0.02,ds))
+                * (1.0-smoothstep(-0.15,0.05,p.y))   // below the bell
+                * smoothstep(-1.1,-0.3,p.y);         // fading toward the tips
+        tent = max(tent, m);
+      }
+      vec3 jc = mix(cB, cA, smoothstep(-0.3,0.4,q.y));
+      col = mix(col, jc, ab*0.40);
+      col += cB*smoothstep(-0.12,-0.02,bell)*ab*0.32;   // luminous bell rim
+      col = mix(col, jc, tent*0.30);
+      continue;
+    }
+
+    float d = 1e5; vec3 fc = cA;
+    float hazeF = 0.18, alphaF = 0.95;
+    bool hasEye = true; vec2 eyeP = vec2(0.28,0.07);
+
+    if(plan < 0.5){
+      /* generic reef fish — most species live here via color + pattern */
+      p.y += sin(t*4.0 + fi + p.x*3.0)*0.07*(1.0-smoothstep(-0.7,0.1,p.x));
+      float body = length(vec2(p.x, p.y*2.1))-0.42;
+      float tailW = sin(t*5.0 + fi)*0.10;
+      float tail = length(vec2((p.x+0.56)*1.8, (p.y+tailW)*2.2))-0.26;
+      float fin  = length(vec2((p.x-0.02)*2.6, (p.y-0.34)*3.6))-0.30;
+      d = min(min(body,tail),fin);
+      fc = mix(cA, cA*1.25+vec3(0.06), smoothstep(0.0,0.35,-p.y));
+      if(pat>0.5 && pat<1.5){                                        // vertical bands
+        float bandm = smoothstep(0.10,0.18,abs(sin(p.x*4.5+0.6)));
+        fc = mix(cB, fc, bandm);
+      }else if(pat>1.5 && pat<2.5){                                  // lateral stripe
+        float st = 1.0 - smoothstep(0.04,0.12,abs(p.y-0.04*sin(p.x*3.0+fi)));
+        fc = mix(fc, cB, st*0.85);
+      }else if(pat>2.5 && pat<3.5){                                  // spots
+        fc = mix(fc, cB, smoothstep(0.45,0.68,noise(p*6.0+fi))*0.85);
+      }
+      eyeP = vec2(0.27,0.06);
+    }else if(plan < 1.5){
+      /* tall disc fish: angelfish / butterflyfish / moorish idol */
+      p.y += sin(t*3.5 + fi + p.x*2.5)*0.05*(1.0-smoothstep(-0.6,0.1,p.x));
+      float body = length(vec2(p.x*1.1, p.y*1.30))-0.46;
+      float tail = length(vec2((p.x+0.60)*2.2, p.y*2.6))-0.22;
+      d = min(body,tail);
+      fc = mix(cA, cA*1.2+vec3(0.05), smoothstep(0.0,0.4,-p.y));
+      if(pat>0.5 && pat<1.5){                                        // sweeping bands
+        float bandm = smoothstep(0.14,0.24,abs(sin((p.x+p.y*0.35)*3.2+0.4)));
+        fc = mix(cB, fc, bandm);
+      }else if(pat>3.5){                                             // butterflyfish marks
+        fc = mix(fc, cB, 1.0-smoothstep(0.09,0.15,length(p-vec2(-0.16,0.20))));
+        fc = mix(fc, cB, (1.0-smoothstep(0.03,0.09,abs(p.x-0.30)))*0.8);
+      }
+      eyeP = vec2(0.30,0.10);
+    }else if(plan < 2.5){
+      /* reef shark — hazier, reads farther away; pat>0.5 = diving variant, nose pitched down */
+      if(pat > 0.5){
+        float ca = cos(-0.30), sa = sin(-0.30);
+        p = mat2(ca,-sa,sa,ca)*p;
+      }
+      p.y += sin(t*2.2 + fi + p.x*2.0)*0.05*(1.0-smoothstep(-0.8,0.2,p.x));
+      float body = length(vec2(p.x*0.85, p.y*2.9))-0.42;
+      float dors = length(vec2((p.x-0.02)*2.2, (p.y-0.34+p.x*0.25)*2.6))-0.22;
+      float tailW = sin(t*3.0 + fi)*0.08;
+      float tail = length(vec2((p.x+0.62)*2.0, (p.y+tailW)*1.35))-0.24;
+      float pec  = length(vec2((p.x-0.12)*2.4, (p.y+0.30-p.x*0.3)*2.6))-0.20;
+      d = min(min(body,dors),min(tail,pec));
+      fc = mix(cA, cB, smoothstep(0.0,0.30,-p.y));
+      hazeF = 0.40; alphaF = 0.85;
+      eyeP = vec2(0.42,0.02);
+    }else if(plan < 3.5){
+      /* sea turtle: mosaic shell, four flapping flippers */
+      float flap = sin(t*1.6 + fi);
+      float shell = length(vec2(p.x*1.15, p.y*1.65))-0.42;
+      float head  = length((p-vec2(0.52,0.10))*vec2(2.6,3.0))-0.30;
+      float fl1 = length((p-vec2(0.10, 0.34+flap*0.10))*vec2(2.2,3.4))-0.26;
+      float fl2 = length((p-vec2(0.06,-0.36-flap*0.10))*vec2(2.2,3.4))-0.26;
+      float fl3 = length((p-vec2(-0.38, 0.26+flap*0.07))*vec2(2.6,4.0))-0.24;
+      float fl4 = length((p-vec2(-0.40,-0.28-flap*0.07))*vec2(2.6,4.0))-0.24;
+      d = min(min(shell,head),min(min(fl1,fl2),min(fl3,fl4)));
+      float inShell = 1.0 - smoothstep(-0.01,0.02,shell);
+      fc = mix(cB, cA, inShell);
+      float patn = fbm(p*6.0+fi);
+      fc *= mix(0.85+0.30*patn, 0.70+0.55*patn, inShell);
+      hazeF = 0.26; alphaF = 0.92;
+      eyeP = vec2(0.60,0.16);
+    }else if(plan < 4.6){
+      /* ray: slow-flapping wings + long trailing tail */
+      float flap = sin(t*2.0 + fi);
+      vec2 q = p;
+      q.y += flap*0.22*abs(q.x);
+      float wings = length(vec2(q.x*0.75, q.y*3.0))-0.42;
+      float tailR = length(vec2((q.x+0.90)*1.15, q.y*6.5))-0.30;
+      d = min(wings,tailR);
+      fc = cA*(0.92+0.18*noise(p*3.0+fi));
+      if(pat>2.5) fc = mix(fc, cB, smoothstep(0.55,0.75,noise(p*9.0+fi))*0.9);
+      hazeF = 0.30; alphaF = 0.90; hasEye = false;
+    }else{
+      /* round puffer / boxfish, spotted */
+      float body = length(p*vec2(1.0,1.12))-0.42;
+      float tail = length(vec2((p.x+0.52)*2.6, p.y*3.0))-0.20;
+      float finT = length(vec2(p.x*3.0, (p.y-0.44)*4.2))-0.22;
+      d = min(min(body,tail),finT);
+      fc = mix(cA, cA*1.25+vec3(0.05), smoothstep(0.0,0.4,-p.y));
+      fc = mix(fc, cB, smoothstep(0.50,0.70,noise(p*7.0+fi))*0.9);
+      eyeP = vec2(0.26,0.12);
+    }
+
+    float a = 1.0 - smoothstep(-0.03,0.03,d);
+    if(a>0.001){
+      if(hasEye){
+        float eye = 1.0 - smoothstep(0.025,0.06,length(p-eyeP));
+        fc = mix(fc, vec3(0.06,0.08,0.10), eye);
+      }
+      fc = mix(fc, midw, hazeF);
+      col = mix(col, fc, a*alphaF);
+    }
+  }
+
+  /* -------- volumetric sun rays -------- */
+  vec2 rd = uv - sun;
+  float ang = atan(rd.x, -rd.y);
+  float r1 = sin(ang*16.0 + t*0.30)*0.5+0.5;
+  float r2 = sin(ang*27.0 - t*0.21 + 1.7)*0.5+0.5;
+  float beam = pow(r1*0.55 + r2*0.55, 3.2);
+  float cone = exp(-ang*ang*2.6);                                   // brightest straight below the sun
+  float rfade = smoothstep(-1.15, 0.95, uv.y);
+  rfade = rfade*rfade;
+  col += vec3(0.80,0.95,1.0)*beam*cone*rfade*(0.20 + uLevel*0.12);
+
+  /* -------- water surface seen from below -------- */
+  float wob = fbm(vec2(uv.x*2.2 + t*0.16, t*0.09))*0.10;
+  float band = smoothstep(0.78+wob, 1.08, uv.y);
+  if(band>0.001){
+    float rip = fbm(vec2(uv.x*6.0 + t*0.5, uv.y*16.0 - t*0.35));
+    vec3 sc = mix(vec3(0.30,0.72,0.85), vec3(0.62,0.90,0.95), rip);
+    float glint = pow(noise(vec2(uv.x*16.0 - t*0.8, uv.y*34.0))*noise(vec2(uv.x*10.0+t*0.6, 3.0)), 3.0);
+    sc += vec3(1.0)*glint*1.6;
+    col = mix(col, sc, band*0.85);
+  }
+
+  /* -------- drifting motes, rising slowly with the water -------- */
+  for(int L=0;L<2;L++){
+    float s = L==0? 5.0 : 9.0;
+    vec2 gp = uv*s + vec2(t*0.020*(1.0+float(L)), -t*0.085*(1.0+float(L)*0.4));
+    vec2 id = floor(gp); vec2 fr = fract(gp)-0.5;
+    vec2 off = (hash2(id)-0.5)*0.75;
+    float dd = length(fr-off);
+    float mote = (1.0 - smoothstep(0.0,0.035,dd))*(0.25+0.75*hash(id+7.0));
+    col += vec3(0.80,0.95,1.0)*mote*(L==0?0.10:0.06);
+  }
+
+  return col;
+}
+
+void main(){
+  float asp = uRes.x/uRes.y;
+  vec2 uv = (gl_FragCoord.xy*2.0 - uRes)/uRes.y;
+  float t = uTime;
+  float px = 2.0/uRes.y;
+
+  /* ---- merged bubble field: distance + gradient ---- */
+  float d = field(uv);
+  vec2 e = vec2(px*1.6, 0.0);
+  vec2 grad = vec2(field(uv+e.xy)-field(uv-e.xy),
+                   field(uv+e.yx)-field(uv-e.yx))/(2.0*e.x);
+  vec2 gdir = grad/max(length(grad), 1e-4);        // outward normal
+  float h = clamp(-d/0.075, 0.0, 1.0);             // 0 at edge → 1 deep inside
+  float hh = h*(2.0-h);
+
+  /* refraction: bend the world seen through the bubble, strongest near the rim */
+  vec2 duv = uv;
+  float inside = d < 0.0 ? 1.0 : 0.0;
+  duv -= gdir*pow(1.0-hh, 1.7)*0.11*inside;
+  vec3 col = scene(duv, asp, t);
+
+  /* ---- tiny riser streams (audio-paced via uRiseT) ---- */
+  for(int i=0;i<16;i++){
+    float fi = float(i);
+    float sx = (hash(vec2(fi,3.0))-0.5)*2.4;
+    float sp = 0.10 + 0.15*hash(vec2(fi,9.0));
+    float ph = fract(uRiseT*sp + hash(vec2(fi,5.0)));
+    float y  = -0.85 + ph*2.1;
+    float x  = sx + sin(t*1.2 + fi*2.1 + ph*9.0)*0.05;
+    float r  = 0.006 + 0.010*hash(vec2(fi,13.0));
+    vec2 q = uv - vec2(x,y);
+    float l = length(q);
+    float a = (1.0 - smoothstep(-px*1.5, px*1.5, l-r))*(1.0-ph*0.65);
+    if(a>0.001){
+      float nrm = clamp(l/r,0.0,1.0);
+      float rim = smoothstep(0.5,0.95,nrm);
+      col += vec3(0.85,0.97,1.0)*rim*a*(0.35+uHigh*0.4);
+      col += vec3(1.0)*exp(-dot(q-vec2(-r*0.3,r*0.35),q-vec2(-r*0.3,r*0.35))/(r*r*0.08))*a*0.45;
+    }
+  }
+
+  /* ---- bubble shading: transparent body, thin uneven arcs, no cartoon ring ----
+     Real refs: interiors ≈ background; brightness lives in partial edge arcs
+     (sun side + a lower internal-reflection arc); small bubbles read as white dots. */
+  float aa = 1.0 - smoothstep(-px*1.5, px*1.5, d);
+  if(aa > 0.001){
+    vec2 sunDir = normalize(vec2(-0.28, 0.92));
+
+    /* faint darker refraction line hugging the very edge */
+    float edgeLine = 1.0 - smoothstep(0.0, 0.16, h);
+    col = mix(col, col*0.88, edgeLine*aa*0.5);
+
+    /* thin bright film just inside the edge — but only in arcs, never a full ring */
+    float rimBand = smoothstep(0.03,0.16,h)*(1.0-smoothstep(0.16,0.46,h));
+    float sunArc = pow(max(dot(gdir, sunDir),0.0), 1.6);
+    float botArc = pow(max(dot(gdir, normalize(vec2(0.18,-1.0))),0.0), 2.4);
+    float uneven = 0.30 + 0.85*noise(uv*9.0 + vec2(t*0.18, -t*0.11));
+    float rim = rimBand*(sunArc*1.15 + botArc*0.70 + 0.06)*uneven;
+    col += vec3(0.96,1.0,1.0)*rim*(0.65+uGlow*0.85)*aa;
+
+    /* interior: barely-there lift so big bubbles keep a hint of film */
+    col += vec3(0.020,0.030,0.032)*hh*aa*(0.5+uGlow*0.5);
+    /* soft inner shadow gives the sphere volume without an outline */
+    float innerRing = smoothstep(0.35,0.62,h)*(1.0-smoothstep(0.62,0.95,h));
+    col = mix(col, col*0.965, innerRing*aa);
+  }
+  /* whisper of a halo when the voice is loud */
+  col += vec3(0.80,0.95,1.0)*exp(-max(d,0.0)*34.0)*(1.0-aa)*0.035*uGlow;
+
+  /* sparse specular glints per bubble (skips the merged-field flatness) */
+  for(int i=0;i<${NBUB};i++){
+    float R = uBub[i].z;
+    if(R < 0.012) continue;
+    vec2 gp1 = uBub[i].xy + vec2(-0.36,0.47)*R;
+    float gl1 = exp(-dot(uv-gp1,uv-gp1)/(R*R*0.018));
+    vec2 gp2 = uBub[i].xy + vec2(0.28,-0.38)*R;
+    float gl2 = exp(-dot(uv-gp2,uv-gp2)/(R*R*0.008));
+    col += vec3(1.0)*(gl1*(0.40+uGlow*0.55) + gl2*0.16)*aa;
+  }
+
+  /* gentle luminous grade — bright, no dark vignette */
+  col *= 1.0 - dot(uv*vec2(0.6,0.7),uv*vec2(0.6,0.7))*0.05;
+  col += (hash(gl_FragCoord.xy)-0.5)/255.0;
+  O = vec4(pow(max(col,0.0), vec3(0.92)), 1.0);
+}`;
+
+function mkShader(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
+  return s;
+}
+let prog=null, U={};
+if(gl){
+  prog = gl.createProgram();
+  gl.attachShader(prog, mkShader(gl.VERTEX_SHADER, VSH));
+  gl.attachShader(prog, mkShader(gl.FRAGMENT_SHADER, FSH));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  ["uRes","uTime","uBass","uMid","uHigh","uLevel","uGlow","uRiseT","uMerge","uWob","uSquash","uBub","uBubV","uFish","uFishP","uFishC1","uFishC2"]
+    .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+}
+function resize(){
+  const dpr = Math.min(devicePixelRatio||1, 1.5);
+  canvas.width = Math.floor(innerWidth*dpr);
+  canvas.height = Math.floor(innerHeight*dpr);
+  if(gl) gl.viewport(0,0,canvas.width,canvas.height);
+}
+addEventListener("resize", resize); resize();
+
+/* ================= pointer — disturbing the water ================= */
+const mouse = {x:0,y:0,tx:0,ty:0,press:0,tPress:0,seen:false};
+function toNorm(cx,cy){
+  return [ (cx*2-innerWidth)/innerHeight, -(cy*2-innerHeight)/innerHeight ];
+}
+canvas.addEventListener("pointermove", e=>{ [mouse.tx,mouse.ty]=toNorm(e.clientX,e.clientY); mouse.seen=true; });
+canvas.addEventListener("pointerdown", e=>{ [mouse.tx,mouse.ty]=toNorm(e.clientX,e.clientY); mouse.seen=true; mouse.tPress=1; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointerup",    ()=> mouse.tPress=0);
+canvas.addEventListener("pointercancel",()=> mouse.tPress=0);
+
+/* ================= bubble physics — sound reshapes the cluster =================
+   Tiers: 0 hero · 1-5 medium orbiters · 6-11 small orbiters · 12-23 free bubbles.
+   State machinery:
+   - mergePhase  : held notes pull orbiters into the hero (goo up, radii in)
+   - transients  : compress the hero, knock the cluster apart, split off free bubbles
+   - rhythm      : faster music → more frequent splitting and livelier orbits
+   - free bubbles: buoyant, rise away, fade out high, respawn on demand           */
+const bubbles = [];
+const bubSizes = [0.185, 0.070,0.060,0.054,0.064,0.057, 0.032,0.024,0.028,0.021,0.034,0.026];
+for(let i=0;i<NBUB;i++){
+  const tier = i===0?0 : i<6?1 : i<12?2 : 3;
+  let a=0, homeR=0;
+  if(tier===1){ a=(i-1)/5*Math.PI*2 + 0.5; homeR=0.30; }
+  if(tier===2){ a=(i-6)/6*Math.PI*2 + 0.2; homeR=0.50; }
+  bubbles.push({ x:Math.cos(a)*homeR, y:Math.sin(a)*homeR*0.8 + 0.05, vx:0, vy:0,
+                 r: tier===3? 0 : bubSizes[i], phase:Math.random()*6.28,
+                 homeA:a, e:0, tier, life:0 });
+}
+const bubBuf  = new Float32Array(NBUB*4);
+const bubVBuf = new Float32Array(NBUB*4);
+const bandE = new Float32Array(12);
+let mainEnv = 0;              // slow "breathing" envelope of the hero bubble
+let mergePhase = 0;           // sustained-note goo
+let wobEnv = 0;               // transient deformation burst
+let rhythm = 0;               // recent transient rate
+
+function spawnFree(n, hx, hy, hr){
+  for(const b of bubbles){
+    if(n<=0) break;
+    if(b.tier!==3 || b.r>0.001) continue;
+    const a = Math.PI*(0.25 + 0.5*Math.random());          // upper rim of the hero
+    b.x = hx + Math.cos(a)*hr*0.9;
+    b.y = hy + Math.sin(a)*hr*0.9;
+    b.vx = Math.cos(a)*0.22 + (Math.random()-0.5)*0.12;
+    b.vy = Math.sin(a)*0.18 + 0.14;
+    b.r = 0.011 + Math.random()*0.017;
+    b.life = 5 + Math.random()*3;
+    b.phase = Math.random()*6.28;
+    n--;
+  }
+}
+
+function stepBubbles(dt, t, press, pulse){
+  const act = Math.min(sLevel*2.6, 1.0);
+  const spin = (0.045 + 0.22*act)*(1.0 + rhythm*0.35);
+  const spread = 1.0 + vocalE*0.50*motionGain;
+
+  for(let i=0;i<NBUB;i++){
+    const b = bubbles[i];
+    let ax=0, ay=0;
+
+    if(b.tier===0){
+      ax += (0 - b.x)*5.0;
+      ay += (0.05 + Math.sin(t*0.5)*0.012 - b.y)*5.0;
+      b.e = bandE[0];
+    }else if(b.tier===3){
+      /* free bubble: buoyant, wiggling, dies high up */
+      if(b.r<=0.001){ for(let k=0;k<4;k++) bubBuf[i*4+k]=0; bubVBuf[i*4]=0; bubVBuf[i*4+1]=0; bubVBuf[i*4+2]=0; continue; }
+      b.life -= dt;
+      b.vy += 0.42*dt;                                   // buoyancy
+      b.vx += Math.sin(t*3.1 + b.phase*7.0)*0.16*dt;     // wiggle
+      b.vx *= 0.985; b.vy *= 0.988;
+      b.x += b.vx*dt; b.y += b.vy*dt;
+      if(b.y > 0.80 || b.life < 1.0) b.r *= Math.pow(0.25, dt);   // fade out near the surface
+      if(b.y > 1.15 || b.r < 0.003) b.r = 0;
+      bubBuf[i*4]=b.x; bubBuf[i*4+1]=b.y; bubBuf[i*4+2]=b.r; bubBuf[i*4+3]=b.phase;
+      bubVBuf[i*4]=b.vx*0.35; bubVBuf[i*4+1]=b.vy*0.35; bubVBuf[i*4+2]=0.4; bubVBuf[i*4+3]=0;
+      continue;
+    }else{
+      b.e = bandE[i];
+      const speed = b.tier===1? 1.0 : 1.35;
+      b.homeA += spin*dt*speed*(1.0 + (i%3)*0.08);
+      const wobA = b.homeA + 0.12*Math.sin(t*0.4 + i*1.7);
+      /* held notes reel the medium ring into the hero — they visibly merge */
+      const base = b.tier===1
+        ? (0.30 - 0.16*mergePhase)
+        : 0.50;
+      const homeR = base*spread + b.e*(b.tier===1?0.20:0.32);
+      const hx = Math.cos(wobA)*homeR;
+      const hy = Math.sin(wobA)*homeR*0.78 + 0.05
+               + (b.tier===2 ? vocalE*0.10 + 0.03*Math.sin(t*0.3+i) : 0);
+      ax += (hx - b.x)*(b.tier===1?5.5:4.5);
+      ay += (hy - b.y)*(b.tier===1?5.5:4.5);
+      ay += 0.05 + b.e*0.15;                              // buoyancy
+    }
+
+    /* transient: outward knock, small ones jump upward */
+    if(pulse > 0.01 && i>0){
+      const len = Math.hypot(b.x, b.y-0.05)||1e-4;
+      b.vx += (b.x)/len*pulse*0.65;
+      b.vy += (b.y-0.05)/len*pulse*0.65 + (b.tier===2? pulse*0.40 : 0);
+    }
+
+    /* pointer: near motion stirs bubbles away; holding pulls like a current */
+    if(mouse.seen){
+      const mx=mouse.x-b.x, my=mouse.y-b.y, ml=Math.hypot(mx,my)||1e-4;
+      const near = Math.exp(-ml*ml*4.0);
+      ax += (-mx/ml)*near*1.5*(1-press);
+      ay += (-my/ml)*near*1.5*(1-press);
+      const pull = Math.exp(-ml*ml*1.1)*press*3.2;
+      ax += mx*pull; ay += my*pull;
+    }
+
+    /* soft separation — relaxed while merging so bubbles can sink together */
+    const sep = 1.05 - 0.62*mergePhase;
+    for(let j=0;j<12;j++){ if(j===i) continue;
+      const o=bubbles[j], dx=b.x-o.x, dy=b.y-o.y, l2=dx*dx+dy*dy;
+      const minD=(b.r+o.r)*sep, m2=minD*minD;
+      if(l2<m2){ const f=(m2-l2)*4.5/(Math.sqrt(l2)+1e-4); ax+=dx*f; ay+=dy*f; }
+    }
+
+    b.vx = (b.vx + ax*dt)*0.92;
+    b.vy = (b.vy + ay*dt)*0.92;
+    b.x += b.vx*dt;  b.y += b.vy*dt;
+
+    /* size: hero rides the beat spring; orbiters follow their band */
+    const rScale = b.tier===0
+      ? heroScale + mergePhase*0.12
+      : b.tier===1 ? 0.82 + b.e*0.55
+                   : 0.72 + b.e*0.85;
+    bubBuf[i*4]   = b.x;
+    bubBuf[i*4+1] = b.y;
+    bubBuf[i*4+2] = b.r*rScale;
+    bubBuf[i*4+3] = b.phase;
+    bubVBuf[i*4]   = b.vx*0.4;
+    bubVBuf[i*4+1] = b.vy*0.4;
+    bubVBuf[i*4+2] = b.e;
+    bubVBuf[i*4+3] = 0;
+  }
+}
+
+/* ================= reef life director =================
+   22 species across 7 body plans, parameterised by two colors + a pattern.
+   A director drip-feeds events (lone fish, schools, drifters) so the reef
+   feels vividly inhabited but never crowded. Slots recycle off-screen. */
+const SPECIES = [
+  /* plan 0 — reef fish (pat: 0 plain · 1 vertical bands · 2 lateral stripe · 3 spots) */
+  {plan:0, pat:1, c1:[0.96,0.44,0.14], c2:[0.98,0.97,0.94], s:[0.045,0.062], v:[0.030,0.060], w:3},            // clownfish
+  {plan:0, pat:0, c1:[0.99,0.80,0.12], c2:[0.65,0.40,0.05], s:[0.050,0.075], v:[0.030,0.060], w:3},            // yellow tang
+  {plan:0, pat:2, c1:[0.12,0.42,0.96], c2:[0.98,0.85,0.20], s:[0.050,0.080], v:[0.045,0.090], w:3},            // blue tang
+  {plan:0, pat:0, c1:[0.62,0.34,0.94], c2:[0.88,0.72,1.00], s:[0.034,0.050], v:[0.030,0.060], w:3, school:1},  // purple damselfish
+  {plan:0, pat:0, c1:[0.30,0.88,0.66], c2:[0.75,0.98,0.88], s:[0.028,0.040], v:[0.070,0.130], w:3, school:1},  // green chromis
+  {plan:0, pat:2, c1:[0.16,0.72,0.66], c2:[0.94,0.42,0.62], s:[0.080,0.110], v:[0.025,0.045], w:2},            // parrotfish
+  {plan:0, pat:2, c1:[0.96,0.52,0.20], c2:[0.15,0.80,0.80], s:[0.045,0.060], v:[0.110,0.180], w:3},            // rainbow wrasse — a darter
+  {plan:0, pat:0, c1:[0.92,0.22,0.18], c2:[1.00,0.62,0.50], s:[0.030,0.045], v:[0.030,0.055], w:2, school:1},  // cardinalfish
+  {plan:0, pat:1, c1:[0.95,0.86,0.30], c2:[0.14,0.17,0.24], s:[0.040,0.060], v:[0.035,0.060], w:3, school:1},  // sergeant major
+  {plan:0, pat:2, c1:[0.25,0.52,0.96], c2:[0.98,0.84,0.25], s:[0.030,0.040], v:[0.130,0.210], w:3, school:1},  // blue-gold fusilier — fast school
+  {plan:0, pat:0, c1:[0.84,0.88,0.93], c2:[0.96,0.98,1.00], s:[0.020,0.030], v:[0.150,0.240], w:2, school:1},  // sardines — the fastest
+  /* plan 1 — tall disc fish */
+  {plan:1, pat:1, c1:[0.96,0.78,0.20], c2:[0.20,0.42,0.95], s:[0.060,0.090], v:[0.020,0.040], w:2},            // emperor angelfish
+  {plan:1, pat:4, c1:[0.97,0.88,0.45], c2:[0.14,0.14,0.19], s:[0.050,0.070], v:[0.025,0.050], w:2},            // butterflyfish
+  {plan:1, pat:1, c1:[0.96,0.95,0.90], c2:[0.10,0.10,0.14], s:[0.055,0.075], v:[0.025,0.050], w:2},            // moorish idol
+  /* plan 6 — round puffers */
+  {plan:6, pat:3, c1:[0.88,0.76,0.48], c2:[0.28,0.22,0.12], s:[0.050,0.075], v:[0.015,0.030], w:1.5},          // pufferfish
+  {plan:6, pat:3, c1:[0.97,0.84,0.20], c2:[0.10,0.10,0.12], s:[0.030,0.045], v:[0.020,0.035], w:1.5},          // yellow boxfish
+  /* plan 4 — rays */
+  {plan:4, pat:3, c1:[0.22,0.28,0.40], c2:[0.92,0.94,0.97], s:[0.120,0.160], v:[0.040,0.060], w:1},            // spotted eagle ray
+  {plan:4, pat:0, c1:[0.38,0.52,0.66], c2:[0.88,0.92,0.95], s:[0.150,0.200], v:[0.030,0.050], w:1},            // blue ray
+  /* plan 5 — jellyfish */
+  {plan:5, pat:0, c1:[0.96,0.62,0.80], c2:[1.00,0.86,0.93], s:[0.060,0.100], v:[0.006,0.015], w:1.5},          // pink jelly
+  {plan:5, pat:0, c1:[0.55,0.75,0.98], c2:[0.82,0.92,1.00], s:[0.050,0.090], v:[0.006,0.015], w:1.5},          // blue jelly
+  /* plans 2 & 3 — the big calm ones */
+  {plan:2, pat:0, c1:[0.36,0.50,0.60], c2:[0.88,0.92,0.94], s:[0.160,0.210], v:[0.050,0.085], w:0.7},          // reef shark
+  {plan:3, pat:0, c1:[0.42,0.50,0.30], c2:[0.55,0.62,0.40], s:[0.120,0.160], v:[0.012,0.026], w:1},            // sea turtle
+  /* the extra colorful cast */
+  {plan:0, pat:1, c1:[0.95,0.25,0.25], c2:[0.16,0.13,0.16], s:[0.045,0.060], v:[0.040,0.070], w:2},            // flame angelfish
+  {plan:0, pat:3, c1:[0.95,0.55,0.15], c2:[0.20,0.55,0.95], s:[0.040,0.055], v:[0.030,0.050], w:2},            // mandarin fish
+  {plan:0, pat:1, c1:[0.80,0.30,0.30], c2:[0.95,0.92,0.88], s:[0.060,0.080], v:[0.020,0.040], w:1.5},          // lionfish
+  {plan:0, pat:0, c1:[0.98,0.45,0.55], c2:[1.00,0.78,0.55], s:[0.030,0.045], v:[0.050,0.095], w:2.5, school:1},// sea-goldie anthias
+  {plan:0, pat:2, c1:[0.10,0.55,1.00], c2:[0.60,0.95,1.00], s:[0.028,0.040], v:[0.065,0.120], w:2, school:1},  // neon damselfish
+  {plan:0, pat:1, c1:[0.97,0.78,0.20], c2:[0.20,0.20,0.24], s:[0.035,0.050], v:[0.085,0.150], w:2, school:1},  // golden trevally juveniles
+  {plan:1, pat:1, c1:[0.95,0.60,0.25], c2:[0.95,0.95,0.95], s:[0.055,0.080], v:[0.020,0.045], w:1.5},          // regal angelfish
+  {plan:1, pat:4, c1:[0.25,0.62,0.62], c2:[0.95,0.85,0.30], s:[0.060,0.090], v:[0.030,0.055], w:1.5},          // spotted triggerfish
+  {plan:5, pat:0, c1:[0.85,0.70,0.98], c2:[0.95,0.88,1.00], s:[0.055,0.095], v:[0.006,0.015], w:1},            // violet jelly
+  {plan:2, pat:1, c1:[0.24,0.33,0.43], c2:[0.72,0.80,0.86], s:[0.190,0.240], v:[0.055,0.090], w:0.5, dive:1},  // diving shark — rare, pitches down through the scene
+];
+const SPW = SPECIES.reduce((a,s)=>a+s.w,0);
+function pickSpecies(){
+  let r = Math.random()*SPW;
+  for(const s of SPECIES){ r -= s.w; if(r<=0) return s; }
+  return SPECIES[0];
+}
+const rr = (a,b)=>a+Math.random()*(b-a);
+
+const fish = Array.from({length:NFISH}, ()=>({on:false, sp:SPECIES[0], x:0, y:0, v:0, s:0, phase:0, bob:0}));
+const fishBuf   = new Float32Array(NFISH*4);
+const fishPBuf  = new Float32Array(NFISH*4);
+const fishC1Buf = new Float32Array(NFISH*4);
+const fishC2Buf = new Float32Array(NFISH*4);
+let fishTimer = 0;
+
+const FISH_SCALE = 1.35;          // global size multiplier for all reef life
+function placeFish(sp, x, y, v){
+  const f = fish.find(f=>!f.on); if(!f) return;
+  Object.assign(f,{on:true, sp, x, y, v, s:rr(sp.s[0],sp.s[1])*FISH_SCALE, phase:Math.random(), bob:Math.random()*6.28});
+}
+function spawnFishEvent(asp, force){
+  const sp = force || pickSpecies();
+  const dir = Math.random()<0.5? -1 : 1;
+  const x0 = -dir*(asp+0.55);
+  const v = dir*rr(sp.v[0],sp.v[1]);
+  if(sp.school && Math.random()<0.75){
+    const n = 4+Math.floor(Math.random()*4);                 // a small shoal
+    const y0 = rr(-0.25,0.40);
+    for(let k=0;k<n;k++)
+      placeFish(sp, x0-dir*Math.random()*0.55, y0+rr(-0.13,0.13), v*rr(0.92,1.08));
+  }else{
+    const y0 = sp.dive ? rr(0.45,0.65)                       // diving shark enters high
+             : sp.plan===2||sp.plan===4 ? rr(0.10,0.50)      // big swimmers stay higher
+             : sp.plan===3 ? rr(0.05,0.50)
+             : sp.plan===5 ? rr(-0.45,0.10)                  // jellies start low, rise away
+             : rr(-0.30,0.45);
+    placeFish(sp, x0, y0, v);
+  }
+}
+function stepFish(dt, t, asp){
+  fishTimer -= dt;
+  if(fishTimer <= 0){
+    const free = fish.filter(f=>!f.on).length;
+    if(free >= 8) spawnFishEvent(asp);          // only spawn into calm water
+    fishTimer = 4 + Math.random()*6;
+  }
+  for(let i=0;i<NFISH;i++){
+    const f = fish[i];
+    if(!f.on){ fishBuf[i*4+3]=0; continue; }
+    f.x += f.v*dt*(1.0+sLevel*0.3);
+    if(f.sp.plan===5){ f.y += dt*0.013; if(f.y>0.9) f.on=false; }   // jellies drift upward
+    if(f.sp.dive){ f.y -= dt*0.035; if(f.y < -0.30) f.on=false; }   // diving shark descends away
+    if(Math.abs(f.x) > asp+0.7) f.on=false;
+    if(!f.on){ fishBuf[i*4+3]=0; continue; }
+    fishBuf[i*4]   = f.x;
+    fishBuf[i*4+1] = f.y + Math.sin(t*0.5+f.bob)*0.02;
+    fishBuf[i*4+2] = f.v;
+    fishBuf[i*4+3] = f.s;
+    fishPBuf[i*4]  = f.sp.plan;
+    fishPBuf[i*4+1]= f.sp.pat;
+    fishPBuf[i*4+2]= f.phase;
+    fishC1Buf[i*4]  = f.sp.c1[0]; fishC1Buf[i*4+1] = f.sp.c1[1]; fishC1Buf[i*4+2] = f.sp.c1[2];
+    fishC2Buf[i*4]  = f.sp.c2[0]; fishC2Buf[i*4+1] = f.sp.c2[1]; fishC2Buf[i*4+2] = f.sp.c2[2];
+  }
+}
+/* seed the water so the reef feels inhabited from the first frame */
+const seedAsp = canvas.width/Math.max(canvas.height,1);
+spawnFishEvent(seedAsp, SPECIES[6]);            // a rainbow wrasse…
+spawnFishEvent(seedAsp, SPECIES[4]);            // …and a chromis shoal
+fishTimer = 3;
+
+/* ================= audio ================= */
+let actx=null, analyser=null, freq=null;
+let curKind=null, testNode=null, mediaEl=null, mediaSrc=null, micStream=null, micSrc=null;
+const bands = new Float32Array(NB);
+let sBass=0, sMid=0, sHigh=0, sLevel=0, sLowMid=0, sBril=0, vocalE=0;
+let levFast=0;                       // fast envelope; minus slow = "surge"
+let bassFast=0, bassSlow=0;          // dedicated kick-drum onset pair (raw spectrum)
+let lvlFastRaw=0, lvlSlowRaw=0;      // broadband onset pair (raw spectrum)
+let punch=0, pulsePrev=0, lastPulse=0;   // per-beat energy that never plateaus
+let heroScale=1, heroVel=0, squash=0;    // hero radius spring + beat squash
+let prevFreq=null, fluxAvg=0, sFlux=0, sFluxNow=0, lastBeatT=0;   // spectral flux: onsets in dense real music
+let vocalRef=0.12, motionGain=1;         // adaptive loudness reference + slider motion gain
+let sens = 1.15;
+let riseClock = 0;
+
+const $ = id => document.getElementById(id);
+const statusEl = $("status"), statusTxt = $("statusTxt");
+const btns = { test:$("btnTest"), file:$("btnFile"), mic:$("btnMic"), pl:$("btnPlist") };
+
+function ensureCtx(){
+  if(!actx){
+    actx = new (window.AudioContext||window.webkitAudioContext)();
+    analyser = actx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.5;   // low smoothing — keep the beats sharp
+    freq = new Uint8Array(analyser.frequencyBinCount);
+    prevFreq = new Uint8Array(analyser.frequencyBinCount);
+  }
+  if(actx.state==="suspended") actx.resume();
+}
+function stopAll(){
+  if(testNode){ try{testNode.stop();}catch(e){} testNode.disconnect(); testNode=null; }
+  if(mediaEl){ mediaEl.pause(); if(mediaSrc)mediaSrc.disconnect(); mediaEl=null; }
+  if(micStream){ micStream.getTracks().forEach(t=>t.stop()); if(micSrc)micSrc.disconnect(); micStream=null; micSrc=null; }
+  const pl = document.getElementById("player");
+  if(pl){ pl.hidden = true; pl.classList.remove("paused"); }
+  const pp = document.getElementById("plist");
+  if(pp) pp.hidden = true;
+  curKind=null;
+  Object.values(btns).forEach(b=>b.classList.remove("active"));
+  statusEl.classList.remove("live");
+  statusTxt.textContent = "Idle — choose an audio source";
+}
+
+/* ---- Test Audio: the original synthetic 8-second music loop ---- */
+let testBuffer=null;
+async function buildTestAudio(){
+  if(testBuffer) return testBuffer;
+  const sr=44100, dur=8, bpm=120, spb=60/bpm;
+  const off = new OfflineAudioContext(2, sr*dur, sr);
+  const master = off.createGain(); master.gain.value=0.9; master.connect(off.destination);
+  const comp = off.createDynamicsCompressor(); comp.connect(master);
+
+  for(let beat=0; beat<dur/spb; beat++){
+    const t=beat*spb;
+    { const o=off.createOscillator(), g=off.createGain();
+      o.frequency.setValueAtTime(150,t);
+      o.frequency.exponentialRampToValueAtTime(42,t+0.12);
+      g.gain.setValueAtTime(1.0,t);
+      g.gain.exponentialRampToValueAtTime(0.001,t+0.24);
+      o.connect(g); g.connect(comp); o.start(t); o.stop(t+0.26); }
+    { const n=off.createBufferSource();
+      const nb=off.createBuffer(1,sr*0.06,sr), ch=nb.getChannelData(0);
+      for(let i=0;i<ch.length;i++) ch[i]=(Math.random()*2-1)*Math.pow(1-i/ch.length,2);
+      n.buffer=nb;
+      const hp=off.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=7000;
+      const g=off.createGain(); g.gain.value = beat%2? 0.5:0.22;
+      n.connect(hp); hp.connect(g); g.connect(comp); n.start(t+spb/2); }
+  }
+  const bassNotes=[55,55,65.4,49];
+  for(let bar=0;bar<dur/(spb*4);bar++){
+    for(let s=0;s<8;s++){
+      const t=bar*spb*4+s*spb/2, f=bassNotes[(bar+((s/2)|0))%4];
+      const o=off.createOscillator(); o.type="sawtooth"; o.frequency.value=f;
+      const lp=off.createBiquadFilter(); lp.type="lowpass";
+      lp.frequency.setValueAtTime(900,t); lp.frequency.exponentialRampToValueAtTime(180,t+0.22);
+      const g=off.createGain();
+      g.gain.setValueAtTime(0.34,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.24);
+      o.connect(lp); lp.connect(g); g.connect(comp); o.start(t); o.stop(t+0.25);
+    }
+  }
+  const scale=[440,523.25,587.33,659.25,783.99,880,1046.5];
+  for(let s=0;s<dur/(spb/2);s++){
+    const t=s*spb/2+spb/4;
+    const f=scale[(s*3+((s/7)|0))%scale.length]*((s%11===0)?2:1);
+    const o=off.createOscillator(); o.type="triangle"; o.frequency.value=f;
+    const g=off.createGain();
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.16,t+0.015);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.30);
+    const dl=off.createDelay(); dl.delayTime.value=spb*0.75;
+    const fb=off.createGain(); fb.gain.value=0.28;
+    o.connect(g); g.connect(comp);
+    g.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(comp);
+    o.start(t); o.stop(t+0.32);
+  }
+  testBuffer = await off.startRendering();
+  return testBuffer;
+}
+async function playTest(){
+  ensureCtx();
+  if(curKind==="test"){ stopAll(); return; }
+  stopAll();
+  statusTxt.textContent = "Rendering test audio…";
+  const buf = await buildTestAudio();
+  testNode = actx.createBufferSource();
+  testNode.buffer = buf; testNode.loop = true;
+  testNode.connect(analyser); analyser.connect(actx.destination);
+  testNode.start();
+  curKind="test"; btns.test.classList.add("active");
+  statusEl.classList.add("live");
+  statusTxt.textContent = "Test audio playing — synthetic loop";
+}
+/* ---- music player controls (uploads + playlist) ---- */
+const playerEl = $("player"), pPlay = $("pPlay"), pPrev = $("pPrev"), pNext = $("pNext"),
+      pSeek = $("pSeek"), pCur = $("pCur"), pDur = $("pDur");
+let seekDrag = false, trackLabel = "";
+const fmtT = s => { s = Math.max(0, s|0); return (s/60|0) + ":" + String(s%60).padStart(2,"0"); };
+function syncSeekUI(){
+  if(!mediaEl || !isFinite(mediaEl.duration) || mediaEl.duration<=0) return;
+  if(!seekDrag){
+    pSeek.value = mediaEl.currentTime/mediaEl.duration*1000;
+    pCur.textContent = fmtT(mediaEl.currentTime);
+  }
+  pSeek.style.setProperty("--fill", (pSeek.value/10)+"%");
+  let buf = 0;                                     // buffered extent → the pale zone
+  try{
+    for(let i=0;i<mediaEl.buffered.length;i++)
+      buf = Math.max(buf, mediaEl.buffered.end(i));
+  }catch(e){}
+  pSeek.style.setProperty("--buf", Math.min(buf/mediaEl.duration*100,100)+"%");
+}
+pPlay.addEventListener("click", ()=>{
+  if(!mediaEl) return;
+  if(mediaEl.paused){ ensureCtx(); mediaEl.play(); } else mediaEl.pause();
+});
+pSeek.addEventListener("input", ()=>{
+  seekDrag = true;
+  if(mediaEl && isFinite(mediaEl.duration))
+    pCur.textContent = fmtT(pSeek.value/1000*mediaEl.duration);
+  pSeek.style.setProperty("--fill", (pSeek.value/10)+"%");
+});
+pSeek.addEventListener("change", ()=>{
+  if(mediaEl && isFinite(mediaEl.duration))
+    mediaEl.currentTime = pSeek.value/1000*mediaEl.duration;
+  seekDrag = false;
+});
+pPrev.addEventListener("click", ()=> playTrack(plIndex-1));
+pNext.addEventListener("click", ()=> playTrack(plIndex+1));
+
+/* shared media wiring for uploads and playlist tracks */
+function wireMedia(loop){
+  mediaEl.loop = loop;
+  mediaEl.addEventListener("loadedmetadata", ()=>{ pDur.textContent = fmtT(mediaEl.duration); });
+  mediaEl.addEventListener("timeupdate", syncSeekUI);
+  mediaEl.addEventListener("play",  ()=>{ playerEl.classList.remove("paused"); statusEl.classList.add("live");
+                                          statusTxt.textContent = "Playing — " + trackLabel; });
+  mediaEl.addEventListener("pause", ()=>{ playerEl.classList.add("paused"); statusEl.classList.remove("live");
+                                          statusTxt.textContent = "Paused — " + trackLabel; });
+  pSeek.value = 0; pSeek.style.setProperty("--fill","0%");
+  pCur.textContent = "0:00"; pDur.textContent = "0:00";
+  playerEl.hidden = false; playerEl.classList.remove("paused");
+}
+
+function playFile(file){
+  ensureCtx(); stopAll();
+  mediaEl = new Audio(URL.createObjectURL(file));
+  mediaEl.crossOrigin = "anonymous";
+  mediaSrc = actx.createMediaElementSource(mediaEl);
+  mediaSrc.connect(analyser); analyser.connect(actx.destination);
+  trackLabel = file.name.length>30? file.name.slice(0,28)+"…" : file.name;
+  wireMedia(true);
+  pPrev.hidden = pNext.hidden = true;
+  mediaEl.play();
+  curKind="file"; btns.file.classList.add("active");
+  statusEl.classList.add("live");
+  statusTxt.textContent = "Playing — " + trackLabel;
+}
+
+/* ---- My Playlist: sea-themed tracks from the playlist/ folder ----
+   Add songs by dropping files into playlist/ and listing them here. */
+const PLAYLIST = [
+  {title:"Part of Your World — Ariel",             file:"playlist/Part of Your World - Ariel.mp3"},
+  {title:"Under the Sea — Samuel E. Wright",       file:"playlist/Under The Sea - Samuel E. Wright.MP3"},
+  {title:"Finding Nemo — Thomas Newman",           file:"playlist/Finding Nemo - Thomas Newman.mp3"},
+  {title:"Ponyo on the Cliff by the Sea — 久石譲",  file:"playlist/Ponyo On The Cliff By The Sea - 久石譲.m4a"},
+  {title:"Happy Ending — Disney Chorus",           file:"playlist/Happy Ending - Disney Chorus.mp3"},
+  {title:"Poor Unfortunate Souls — Ursula",        file:"playlist/Poor Unfortunate Souls - Ursula.MP3"},
+  {title:"SpongeBob SquarePants Theme",            file:"playlist/SpongeBob SquarePants Theme Song.mp3"},
+  {title:"Swan Lake Main Title — Barbie",          file:"playlist/Swan Lake Main Title - Barbie.mp3"},
+  {title:"哪吒闹海 — 上美",                         file:"playlist/哪吒闹海 - 上美.mp3"},
+  {title:"龙宫 — 上美",                             file:"playlist/龙宫 - 上美.mp3"},
+];
+let plIndex = -1;
+const plistEl = $("plist"), plItems = $("plItems");
+function renderPlaylist(){
+  plItems.innerHTML = "";
+  if(!PLAYLIST.length){
+    const p = document.createElement("p"); p.className = "empty";
+    p.textContent = "Songs coming soon — drop files into the songs folder.";
+    plItems.appendChild(p); return;
+  }
+  PLAYLIST.forEach((tr,i)=>{
+    const row = document.createElement("div");
+    row.className = "plrow" + (i===plIndex && curKind==="playlist" ? " current" : "");
+    const n = document.createElement("span"); n.className = "n"; n.textContent = i+1;
+    const ttl = document.createElement("span"); ttl.textContent = tr.title;
+    row.append(n, ttl);
+    row.addEventListener("click", ()=> playTrack(i));
+    plItems.appendChild(row);
+  });
+}
+function playTrack(i){
+  if(!PLAYLIST.length) return;
+  ensureCtx(); stopAll();
+  plIndex = ((i % PLAYLIST.length) + PLAYLIST.length) % PLAYLIST.length;
+  const tr = PLAYLIST[plIndex];
+  mediaEl = new Audio(encodeURI(tr.file));
+  mediaEl.preload = "auto";
+  mediaSrc = actx.createMediaElementSource(mediaEl);
+  mediaSrc.connect(analyser); analyser.connect(actx.destination);
+  trackLabel = tr.title;
+  wireMedia(false);
+  mediaEl.addEventListener("ended", ()=> playTrack(plIndex+1));
+  mediaEl.addEventListener("error", ()=>{ statusTxt.textContent = "Missing file — " + tr.title; });
+  pPrev.hidden = pNext.hidden = false;
+  mediaEl.play().catch(()=>{});
+  /* opened via file:// in a normal browser, local music is silenced by security
+     rules once routed through the analyser — detect it and point at the launcher */
+  if(location.protocol === "file:"){
+    setTimeout(()=>{
+      if(curKind!=="playlist" || !mediaEl || mediaEl.paused) return;
+      let s=0; for(let k=0;k<NB;k++) s+=bands[k];
+      if(s < 0.01){
+        statusTxt.textContent = "No sound on file:// — double-click “Open Reef Voice.command” instead";
+        statusEl.classList.remove("live");
+      }
+    }, 2800);
+  }
+  plistEl.hidden = false;
+  curKind="playlist"; btns.pl.classList.add("active");
+  statusEl.classList.add("live");
+  statusTxt.textContent = "Playing — " + trackLabel;
+  renderPlaylist();
+}
+async function playMic(){
+  ensureCtx();
+  if(curKind==="mic"){ stopAll(); return; }
+  stopAll();
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false}});
+    micSrc = actx.createMediaStreamSource(micStream);
+    try{ analyser.disconnect(); }catch(e){}
+    micSrc.connect(analyser);
+    curKind="mic"; btns.mic.classList.add("active");
+    statusEl.classList.add("live");
+    statusTxt.textContent = "Microphone active — speak to it";
+  }catch(err){
+    statusTxt.textContent = "Microphone unavailable: " + (err.name||"permission denied");
+  }
+}
+btns.test.addEventListener("click", playTest);
+btns.mic .addEventListener("click", playMic);
+btns.file.addEventListener("click", ()=> $("filePick").click());
+btns.pl  .addEventListener("click", ()=>{
+  if(curKind==="playlist"){ stopAll(); renderPlaylist(); }
+  else playTrack(plIndex < 0 ? 0 : plIndex);
+});
+renderPlaylist();
+$("filePick").addEventListener("change", e=>{ if(e.target.files[0]) playFile(e.target.files[0]); e.target.value=""; });
+const rSens = $("rSens");
+function syncSens(){ sens = +rSens.value; rSens.style.setProperty("--fill", ((sens-0.4)/2.0*100)+"%"); }
+rSens.addEventListener("input", syncSens); syncSens();
+
+/* ---- FFT → bands + envelopes, tuned for the human voice ---- */
+function updateBands(){
+  if(!analyser){ decayBands(); return; }
+  analyser.getByteFrequencyData(freq);
+  const n = freq.length, maxBin = Math.floor(n*0.75);
+  for(let i=0;i<NB;i++){
+    const f0 = Math.pow(i/NB,1.7)*maxBin, f1 = Math.pow((i+1)/NB,1.7)*maxBin;
+    let s=0,c=0;
+    for(let b=Math.floor(f0); b<Math.max(Math.floor(f1),Math.floor(f0)+1); b++){ s+=freq[b]; c++; }
+    let v = (s/(c||1))/255;
+    v = v*v*1.3*sens;                 // linear sensitivity — no more squared blowout
+    const cur = bands[i];
+    bands[i] = v>cur ? cur+(v-cur)*0.55 : cur+(v-cur)*0.12;   // fast attack, moderate release
+  }
+  let b=0,m=0,h=0,lm=0,br=0;
+  for(let i=0;i<6;i++)  b+=bands[i];
+  for(let i=6;i<26;i++) m+=bands[i];
+  for(let i=26;i<NB;i++)h+=bands[i];
+  for(let i=3;i<15;i++) lm+=bands[i];       // ~100–900 Hz: vocal fundamentals
+  for(let i=14;i<36;i++)br+=bands[i];       // ~1–7 kHz: vocal brightness/harmonics
+  b/=6; m/=20; h/=NB-26; lm/=12; br/=22;
+  sBass  += (Math.min(b,1)-sBass )*0.16;
+  sMid   += (Math.min(m,1)-sMid  )*0.16;
+  sHigh  += (Math.min(h,1)-sHigh )*0.16;
+  sLowMid+= (Math.min(lm*1.2,1)-sLowMid)*0.16;
+  sBril  += (Math.min(br*1.5,1)-sBril)*0.18;
+  const lev = Math.min((b+m+h)/2.0,1);
+  sLevel += (lev-sLevel)*0.12;
+  levFast+= (lev-levFast)*0.5;
+  /* beat engine feeds on RAW spectrum bytes — immune to the sensitivity slider,
+     whose clamped envelopes were erasing beats at high settings */
+  let rawB=0; for(let k=1;k<7;k++) rawB+=freq[k]; rawB/=6*255;          // kick region
+  let rawL=0, rcnt=0; for(let k=0;k<maxBin;k+=4){ rawL+=freq[k]; rcnt++; } rawL/=rcnt*255;
+  bassFast += (rawB-bassFast)*0.55;    // rides every kick
+  bassSlow += (rawB-bassSlow)*0.06;    // the local average it must beat
+  lvlFastRaw += (rawL-lvlFastRaw)*0.5;
+  lvlSlowRaw += (rawL-lvlSlowRaw)*0.06;
+  /* spectral flux: how much of the spectrum just JUMPED — the classic onset
+     detector; real songs bury kicks in bass lines, but flux still spikes on
+     every drum hit, note change and phrase entrance */
+  let flux=0, fcnt=0;
+  for(let k=2;k<maxBin;k+=2){ const dl=freq[k]-prevFreq[k]; if(dl>0) flux+=dl; fcnt++; }
+  prevFreq.set(freq);
+  flux /= fcnt*255;
+  fluxAvg += (flux-fluxAvg)*0.03;                       // its own local average
+  const rel = fluxAvg>0.003 ? Math.max(0, flux/fluxAvg - 1.30) : 0;
+  sFluxNow = Math.min(rel, 1.8);                          // instantaneous — zero between hits
+  sFlux = Math.max(sFlux*0.80, Math.min(rel*0.85, 1.6));  // envelope — continuous energy
+
+  /* per-orbiter band energy: medium ring ← low-mid/mid, small ring ← where singing sparkles */
+  bandE[0] += (Math.min(0.55*lev*1.3 + 0.65*sLowMid, 1)-bandE[0]) * 0.2;
+  for(let i=1;i<6;i++){
+    const lo = 4+(i-1)*4, hi = lo+4;
+    let s2=0; for(let k=lo;k<hi;k++) s2+=bands[k];
+    const v = Math.min(s2/4*1.5, 1);
+    bandE[i] += (v-bandE[i]) * (v>bandE[i]?0.45:0.08);
+  }
+  for(let i=6;i<12;i++){
+    const lo = 12+(i-6)*3, hi = Math.min(lo+4, NB);
+    let s2=0; for(let k=lo;k<hi;k++) s2+=bands[k];
+    const v = Math.min(s2/(hi-lo)*1.8, 1);
+    bandE[i] += (v-bandE[i]) * (v>bandE[i]?0.5:0.09);
+  }
+}
+function decayBands(){
+  for(let i=0;i<NB;i++) bands[i]*=0.97;
+  sBass*=0.975; sMid*=0.975; sHigh*=0.975; sLevel*=0.975; sLowMid*=0.975; sBril*=0.97; levFast*=0.94;
+  bassFast*=0.90; bassSlow*=0.985; lvlFastRaw*=0.90; lvlSlowRaw*=0.985;
+  fluxAvg*=0.985; sFlux*=0.85; sFluxNow=0;
+  for(let i=0;i<12;i++) bandE[i]*=0.965;
+}
+/* idle: the faintest breathing, like still water */
+function idlePulse(t){
+  if(curKind) return;
+  const v = 0.05 + 0.04*Math.sin(t*0.4);
+  sLevel += (v-sLevel)*0.02;
+  sLowMid+= (v*0.9-sLowMid)*0.02;
+  sMid   += (v*0.7-sMid)*0.02;
+  for(let i=0;i<12;i++){
+    const w = 0.05 + 0.05*Math.sin(t*0.45 + i*1.1);
+    bandE[i] += (w-bandE[i])*0.02;
+  }
+}
+
+/* ================= HUD meters ================= */
+const NBAR = 14;
+function buildBars(id){
+  const el = $(id), arr=[];
+  for(let i=0;i<NBAR;i++){ const s=document.createElement("i"); el.appendChild(s); arr.push(s); }
+  return arr;
+}
+const barsB = gl? buildBars("mBass"):[], barsM = gl? buildBars("mMid"):[], barsH = gl? buildBars("mHigh"):[];
+{ const tk=$("mTicks"); for(let i=0;i<28;i++){ tk.appendChild(document.createElement("i")); } }
+{ const w=$("titleWave"); for(let i=0;i<22;i++){ const s=document.createElement("i");
+    s.style.height=(3+Math.abs(Math.sin(i*1.7))*9).toFixed(0)+"px"; w.appendChild(s);} }
+function drawBars(arr, lo, hi){
+  const span = hi-lo;
+  for(let i=0;i<NBAR;i++){
+    const p = lo + (i+0.5)/NBAR*span;
+    const i0 = Math.floor(p), fr = p-i0;
+    const v = bands[i0]*(1-fr) + bands[Math.min(i0+1,NB-1)]*fr;
+    arr[i].style.transform = `scaleY(${Math.max(0.08, Math.min(v*1.4,1)).toFixed(3)})`;
+  }
+}
+
+/* ================= main loop ================= */
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let last = performance.now();
+
+function frame(now){
+  requestAnimationFrame(frame);
+  if(!gl || !prog) return;
+  const dt = Math.min((now-last)/1000, 0.05); last = now;
+  const t = now/1000;
+  const asp = canvas.width/canvas.height;
+
+  if(curKind) updateBands(); else { decayBands(); if(!reduceMotion) idlePulse(t); }
+
+  /* the sensitivity slider scales MOTION, not detection — High is now dramatic */
+  motionGain = 0.45 + sens*0.50;                        // 0.65 … 1.65 (1.03 at default)
+
+  /* vocal energy, normalized against a rolling loudness reference (AGC):
+     mastered songs sit near constant loudness, which used to pin this at 1.0
+     and freeze the breathing — relative energy restores verse/chorus contrast */
+  const vocalRaw = 0.55*sLevel*1.35 + 0.65*sLowMid;
+  vocalRef += (vocalRaw-vocalRef)*(vocalRaw>vocalRef? 0.012 : 0.003);
+  vocalE = Math.max(0, Math.min(vocalRaw/Math.max(vocalRef*1.25, 0.15), 1));
+  /* hero bubble breathes: quick attack, slower release — held notes swell, phrases settle */
+  const kUp = 1-Math.exp(-dt/0.15), kDn = 1-Math.exp(-dt/0.8);
+  mainEnv += (vocalE-mainEnv)*(vocalE>mainEnv? kUp : kDn);
+
+  /* ---- beat engine: onsets that keep firing for the whole track ----
+     bassFast/bassSlow track the kick against its own local average, so a steady
+     groove never plateaus into silence the way level-vs-level did. */
+  const bassOn = Math.max(0, bassFast - bassSlow - 0.02);
+  const levOn  = Math.max(0, lvlFastRaw - lvlSlowRaw - 0.02);
+  /* two channels: pulseEdge (spiky, drops to zero between hits → clean beat edges)
+     and pulse (envelope → continuous energy for punch/size/glow) */
+  const pulseEdge = Math.max(bassOn*3.0, levOn*2.6, sFluxNow*0.85);
+  const pulse  = Math.max(pulseEdge, sFlux*0.9);
+  punch = Math.max(punch*Math.exp(-dt/0.20), Math.min(pulse*2.4, 1.5));
+  const beat = pulseEdge > 0.09 && pulsePrev <= 0.09 && (t-lastBeatT) > 0.14;
+  if(beat){ lastBeatT = t; window.__beats = (window.__beats||0)+1; }
+  pulsePrev = pulseEdge; lastPulse = pulse;
+
+  if(beat){
+    rhythm = Math.min(rhythm + 0.5, 2.2);
+    wobEnv = Math.min(wobEnv + (0.35 + pulse*0.9)*motionGain, 1.4);  // brief deformation
+    mergePhase *= 0.5;                                          // a hit breaks the goo apart
+    heroVel += (1.4 + pulse*3.5)*motionGain;                    // the kick that makes it jump
+    squash  = Math.min(squash + (0.30 + pulse*0.8)*motionGain, 1.1);
+    if(pulse > 0.18){                                           // only strong hits shed bubbles
+      const hb = bubbles[0];
+      spawnFree(1 + Math.round(Math.min(pulse,1)*3), hb.x, hb.y, bubBuf[2]||hb.r);
+    }
+  }
+  rhythm *= Math.exp(-dt/1.6);
+  wobEnv *= Math.exp(-dt/0.5);
+  squash *= Math.exp(-dt/0.30);
+  const sustained = vocalE > 0.38 && punch < 0.10;
+  mergePhase = Math.max(0, Math.min(1, mergePhase + (sustained? dt*0.55 : -dt*0.7)));
+  /* energetic passages only — never a constant drizzle of small bubbles */
+  if(curKind && rhythm > 0.8 && vocalE > 0.45 && Math.random() < dt*rhythm*0.7){
+    const hb = bubbles[0];
+    spawnFree(1, hb.x, hb.y, bubBuf[2]||hb.r);
+  }
+
+  /* hero radius rides an underdamped spring: beat → overshoot → bounce → recover */
+  const heroTarget = 1.0 + (mainEnv*0.28 + vocalE*0.10 + punch*0.62)*motionGain;
+  heroVel += (heroTarget - heroScale)*130*dt;
+  heroVel *= Math.exp(-dt*7.5);
+  heroScale += heroVel*dt;
+  heroScale = Math.max(0.65, Math.min(heroScale, 2.1));
+
+  mouse.x += (mouse.tx-mouse.x)*0.14;
+  mouse.y += (mouse.ty-mouse.y)*0.14;
+  mouse.press += (mouse.tPress-mouse.press)*0.10;
+
+  riseClock += dt*(0.35 + sLevel*1.1 + sBril*0.9);
+  stepBubbles(dt, t, mouse.press, pulse);
+  stepFish(dt, t, asp);
+
+  gl.uniform2f(U.uRes, canvas.width, canvas.height);
+  gl.uniform1f(U.uTime, reduceMotion? 0 : t);
+  gl.uniform1f(U.uBass, sBass);
+  gl.uniform1f(U.uMid,  sMid);
+  gl.uniform1f(U.uHigh, sBril);   // shimmer follows vocal brightness, not 6 kHz+ hiss
+  gl.uniform1f(U.uLevel,sLevel);
+  gl.uniform1f(U.uGlow, Math.min(0.3*sLevel+0.6*mainEnv+punch*0.4,1));   // highlights flash on the hit
+  gl.uniform1f(U.uRiseT, riseClock);
+  gl.uniform1f(U.uMerge, mergePhase);
+  gl.uniform1f(U.uWob, 0.30 + sMid*0.8 + wobEnv);
+  gl.uniform1f(U.uSquash, squash);
+  gl.uniform4fv(U.uBub, bubBuf);
+  gl.uniform4fv(U.uBubV, bubVBuf);
+  gl.uniform4fv(U.uFish, fishBuf);
+  gl.uniform4fv(U.uFishP, fishPBuf);
+  gl.uniform4fv(U.uFishC1, fishC1Buf);
+  gl.uniform4fv(U.uFishC2, fishC2Buf);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  drawBars(barsB, 0, 6); drawBars(barsM, 6, 26); drawBars(barsH, 26, NB);
+
+  /* numeric probe for tuning (harmless in production) */
+  window.__viz = {pulse:lastPulse, punch, heroScale, squash, mainEnv, vocalE, sFlux, vocalRef, motionGain};
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
